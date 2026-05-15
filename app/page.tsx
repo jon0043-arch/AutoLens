@@ -1,6 +1,5 @@
 'use client'
 
-import type * as React from 'react'
 import { useRef, useState } from 'react'
 
 type Severity = 'low' | 'moderate' | 'high'
@@ -45,7 +44,6 @@ const SURF = '#ECEAE6'
 const MUTED = '#6B6A67'
 const DIM = '#9E9D9A'
 const LINE = '#E6E4E0'
-const VEHICLE_PLACEHOLDER_SRC = '/luxury-suv-hero.png'
 
 const SEV: Record<Severity, { label: string; color: string }> = {
   low: { label: 'Low', color: '#8C8A84' },
@@ -241,7 +239,7 @@ function VehicleHero({ a }: { a: Appraisal }) {
         <HeroMetric label="Estimated Value" value={fmt(a.estimatedValue)} />
         <div style={{ textAlign: 'center', minWidth: 0 }}>
           <img
-            src={VEHICLE_PLACEHOLDER_SRC}
+            src="/luxury-suv-hero.png"
             alt={`${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}`}
             style={{
               width: '100%',
@@ -734,12 +732,8 @@ function PhotosTab({ photosOk, onReview }: { photosOk: boolean; onReview: () => 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 22 }}>
         {['Front', 'Front Left', 'Front Right', 'Rear', 'Rear Left', 'Rear Right', 'Left Side', 'Right Side', 'Interior', 'Engine', 'Odometer'].map((label) => (
           <div key={label} style={photoTileStyle()}>
-            <img
-              src={VEHICLE_PLACEHOLDER_SRC}
-              alt={`${label} placeholder`}
-              style={{ width: '78%', height: '58%', objectFit: 'contain', display: 'block', opacity: 0.86 }}
-            />
-            <span style={{ fontSize: 9, color: DIM, marginTop: 5 }}>{label}</span>
+            <span style={{ width: 32, height: 22, borderRadius: 999, background: '#DDD7CD', display: 'block', marginBottom: 7 }} />
+            <span style={{ fontSize: 9, color: DIM }}>{label}</span>
           </div>
         ))}
         <div style={{ ...photoTileStyle(), border: `1.5px dashed ${GOLD}`, color: GOLD }}>Add Photo</div>
