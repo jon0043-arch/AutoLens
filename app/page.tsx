@@ -1,22 +1,19 @@
 'use client'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Severity = 'low' | 'moderate' | 'high'
 type Status   = 'pending' | 'review' | 'approved' | 'sent'
+type UploadCat = 'book' | 'mmr' | 'retail'
 
-interface Issue {
-  id: string; label: string; severity: Severity
-  repairLow: number; repairHigh: number
-}
+interface Issue { id: string; label: string; severity: Severity; repairLow: number; repairHigh: number }
+interface ValUpload { fileName: string; preview: string; status: 'parsing' | 'parsed'; data: Record<string, string> }
 interface Appraisal {
   id: string; status: Status; createdAt: string
   customer: { name: string; phone: string }
   vehicle: { year: string; make: string; model: string; trim: string; vin: string; mileage: string; color: string }
-  issues: Issue[]
-  values: { retail: number; trade: number; wholesale: number }
-  estimatedValue: number; conditionScore: number
-  recommendations: string[]; notes: string
+  issues: Issue[]; values: { retail: number; trade: number; wholesale: number }
+  estimatedValue: number; conditionScore: number; recommendations: string[]; notes: string
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -29,28 +26,36 @@ const SEV: Record<Severity, { text: string; bg: string; label: string }> = {
 }
 const STAT: Record<Status, { label: string; text: string; bg: string }> = {
   pending:  { label: 'Pending',        text: '#6B7280', bg: '#F3F4F6' },
-  review:   { label: 'Pending Review', text: '#B45309', bg: '#FEF3C7' },
-  approved: { label: 'Approved',       text: '#065F46', bg: '#D1FAE5' },
+  review:   { label: 'Needs Review',   text: '#B45309', bg: '#FEF3C7' },
+  approved: { label: 'Ready to Send',  text: '#065F46', bg: '#D1FAE5' },
   sent:     { label: 'Sent',           text: '#1D4ED8', bg: '#DBEAFE' },
 }
 const PRODUCTS = [
-  { id: 'wheel',    label: 'Wheel & Tire Protection',    savings: '$150–$900'   },
-  { id: 'shield',   label: 'Windshield Protection',      savings: '$75–$1,000'  },
-  { id: 'key',      label: 'Key Replacement Protection', savings: '$400–$1,200' },
-  { id: 'interior', label: 'Interior Protection',        savings: '$250–$600'   },
-  { id: 'gps',      label: 'GPS Recovery & Theft',       savings: '$299–$699'   },
+  { id: 'wheel',    label: 'Wheel & Tire Protection',    desc: 'Covers damaged wheels and tires'      },
+  { id: 'shield',   label: 'Windshield Protection',      desc: 'Chip and crack repair/replacement'    },
+  { id: 'key',      label: 'Key Replacement',            desc: 'Lost, stolen, or broken key coverage' },
+  { id: 'interior', label: 'Interior Protection',        desc: 'Stain, burn, and tear coverage'       },
+  { id: 'gps',      label: 'GPS & Theft Protection',     desc: 'GPS tracking and theft recovery'      },
 ]
-const NAV = [
-  { icon: '▦',  label: 'Dashboard'  },
-  { icon: '≡',  label: 'Appraisals' },
-  { icon: '⊙',  label: 'Deals'      },
-  { icon: '▤',  label: 'Inventory'  },
-  { icon: '◎',  label: 'Customers'  },
-  { icon: '▣',  label: 'Reports'    },
-  { icon: '⊡',  label: 'Products'   },
-  { icon: '⚙',  label: 'Settings'   },
-  { icon: '⊛',  label: 'Admin'      },
+const NAV = ['Dashboard','Appraisals','Deals','Inventory','Customers','Reports','Products','Settings','Admin']
+const TABS = [
+  { k: 'photos',  l: 'Photos'          },
+  { k: 'values',  l: 'Values'          },
+  { k: 'damage',  l: 'Damage'          },
+  { k: 'vehicle', l: 'Vehicle Info'    },
+  { k: 'notes',   l: 'Notes'           },
+  { k: 'report',  l: 'Customer Report' },
 ]
+const FAKE_PARSE: Record<UploadCat, Record<string, string>> = {
+  book:   { 'Source': 'KBB', 'Trade-In Value': '$39,800', 'Private Party': '$42,200', 'Retail Value': '$45,900', 'Confidence': 'High' },
+  mmr:    { 'Clean MMR Avg': '$41,500', 'Accident MMR Avg': '$37,200', 'Transactions': '8', 'Mileage Range': '48k–65k mi', 'Confidence': 'Medium' },
+  retail: { 'Clean Retail Avg': '$46,900', 'Accident Retail Avg': '$42,300', 'Listings': '12', 'Market Spread': '$4,600', 'Confidence': 'High' },
+}
+const UPLOAD_META: Record<UploadCat, { title: string; hint: string; empty: string }> = {
+  book:   { title: 'Book Values',     hint: 'KBB · Edmunds · Black Book · JD Power', empty: 'No book values uploaded yet'    },
+  mmr:    { title: 'MMR / Wholesale', hint: 'Manheim MMR · Auction comps',            empty: 'Upload MMR screenshot'         },
+  retail: { title: 'Retail Comps',    hint: 'Clean & accident retail listings',        empty: 'No retail comps uploaded yet' },
+}
 const fmt = (n: number) => n > 0 ? `$${n.toLocaleString()}` : '—'
 
 // ─── Seed Data ────────────────────────────────────────────────────────────────
@@ -94,21 +99,16 @@ const SEED: Appraisal[] = [
       { id: 'i7', label: 'Front Bumper Scuff', severity: 'moderate', repairLow: 300, repairHigh: 700 },
     ],
     values: { retail: 38000, trade: 28000, wholesale: 25000 },
-    estimatedValue: 37500, conditionScore: 76,
-    recommendations: ['wheel', 'gps'], notes: '',
+    estimatedValue: 37500, conditionScore: 76, recommendations: ['wheel', 'gps'], notes: '',
   },
 ]
 
 // ─── Logo ─────────────────────────────────────────────────────────────────────
 function Logo({ size = 20 }: { size?: number }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 0, fontWeight: 900, fontSize: size, letterSpacing: -0.5, lineHeight: 1 }}>
+    <div style={{ display: 'flex', alignItems: 'center', fontWeight: 900, fontSize: size, letterSpacing: -0.5, lineHeight: 1 }}>
       <span style={{ color: '#fff' }}>Aut</span>
-      <span style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: size * 1.1, height: size * 1.1, borderRadius: '50%',
-        background: Y, position: 'relative', flexShrink: 0,
-      }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size * 1.1, height: size * 1.1, borderRadius: '50%', background: Y, flexShrink: 0 }}>
         <svg width={size * 0.65} height={size * 0.65} viewBox="0 0 24 24" fill="#111">
           <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
         </svg>
@@ -120,22 +120,269 @@ function Logo({ size = 20 }: { size?: number }) {
 
 // ─── Condition Gauge ──────────────────────────────────────────────────────────
 function ConditionGauge({ score }: { score: number }) {
-  const r = 36, c = 2 * Math.PI * r
-  const pct = score / 100
-  const color = score >= 85 ? '#10B981' : score >= 70 ? '#F5B800' : '#EF4444'
+  const r = 36, c = 2 * Math.PI * r, pct = score / 100
+  const color = score >= 85 ? '#10B981' : score >= 70 ? Y : '#EF4444'
   const label = score >= 85 ? 'Excellent' : score >= 70 ? 'Good' : score >= 50 ? 'Fair' : 'Poor'
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-      <svg width={90} height={90} style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx={45} cy={45} r={r} fill="none" stroke="#F3F4F6" strokeWidth={8} />
-        <circle cx={45} cy={45} r={r} fill="none" stroke={color} strokeWidth={8}
-          strokeDasharray={`${pct * c} ${c}`} strokeLinecap="round" />
-      </svg>
-      <div style={{ marginTop: -70, textAlign: 'center', zIndex: 1 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: '#111', lineHeight: 1 }}>{score}</div>
-        <div style={{ fontSize: 10, color: '#9CA3AF' }}>/100</div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ position: 'relative', width: 90, height: 90 }}>
+        <svg width={90} height={90} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={45} cy={45} r={r} fill="none" stroke="#F3F4F6" strokeWidth={8} />
+          <circle cx={45} cy={45} r={r} fill="none" stroke={color} strokeWidth={8} strokeDasharray={`${pct * c} ${c}`} strokeLinecap="round" />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: '#111', lineHeight: 1 }}>{score}</div>
+          <div style={{ fontSize: 10, color: '#9CA3AF' }}>/100</div>
+        </div>
       </div>
-      <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 32 }}>{label}</div>
+      <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 4 }}>{label}</div>
+    </div>
+  )
+}
+
+// ─── Workflow Bar ─────────────────────────────────────────────────────────────
+function WorkflowBar({ activeTab, setActiveTab, done }: { activeTab: string; setActiveTab: (t: string) => void; done: Record<string, boolean> }) {
+  const steps = [
+    { tab: 'photos',  label: 'Review Photos',   key: 'photos'  },
+    { tab: 'values',  label: 'Check Values',    key: 'values'  },
+    { tab: 'damage',  label: 'Confirm Damage',  key: 'damage'  },
+    { tab: 'report',  label: 'Preview Report',  key: 'report'  },
+    { tab: '',        label: 'Send',             key: 'send'    },
+  ]
+  return (
+    <div style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB', padding: '0 28px', display: 'flex', alignItems: 'center', height: 48, gap: 0, flexShrink: 0 }}>
+      {steps.map((s, i) => {
+        const isDone = done[s.key]
+        const isActive = s.tab === activeTab || (s.key === 'send' && activeTab === 'report')
+        return (
+          <div key={s.key} style={{ display: 'flex', alignItems: 'center', flex: i < steps.length - 1 ? 1 : undefined }}>
+            <div onClick={() => s.tab && setActiveTab(s.tab)} style={{
+              display: 'flex', alignItems: 'center', gap: 7, cursor: s.tab ? 'pointer' : 'default',
+              padding: '4px 8px', borderRadius: 8,
+              background: isActive ? '#111' : 'transparent',
+            }}>
+              <div style={{
+                width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                background: isDone ? Y : isActive ? '#fff' : '#E5E7EB',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 10, fontWeight: 700,
+                color: isDone ? '#111' : isActive ? '#111' : '#9CA3AF',
+              }}>
+                {isDone ? '✓' : i + 1}
+              </div>
+              <span style={{ fontSize: 12, fontWeight: isActive ? 700 : 500, color: isActive ? '#fff' : isDone ? '#374151' : '#9CA3AF', whiteSpace: 'nowrap' }}>
+                {s.label}
+              </span>
+            </div>
+            {i < steps.length - 1 && (
+              <div style={{ flex: 1, height: 1, background: isDone ? Y : '#E5E7EB', margin: '0 4px' }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Inline Edit Cell ─────────────────────────────────────────────────────────
+function InlineEdit({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [v, setV] = useState(value)
+  if (editing) return (
+    <input autoFocus value={v} onChange={e => setV(e.target.value)}
+      onBlur={() => { onChange(v); setEditing(false) }}
+      onKeyDown={e => { if (e.key === 'Enter') { onChange(v); setEditing(false) } }}
+      style={{ width: '100%', border: '1px solid ' + Y, borderRadius: 5, padding: '3px 6px', fontSize: 12, fontWeight: 600, outline: 'none', background: '#FFFBEB' }} />
+  )
+  return (
+    <span onClick={() => setEditing(true)} style={{ cursor: 'pointer', fontWeight: 600 }} title="Click to edit">
+      {v} <span style={{ fontSize: 10, color: '#D1D5DB' }}>✎</span>
+    </span>
+  )
+}
+
+// ─── Upload Card ──────────────────────────────────────────────────────────────
+function UploadCard({ cat, upload, onFile, onEdit }: {
+  cat: UploadCat
+  upload: ValUpload | null
+  onFile: (cat: UploadCat, file: File) => void
+  onEdit: (cat: UploadCat, key: string, val: string) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  const [drag, setDrag] = useState(false)
+  const meta = UPLOAD_META[cat]
+
+  const handle = (file: File) => onFile(cat, file)
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Card header */}
+      <div style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#111' }}>{meta.title}</div>
+          <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{meta.hint}</div>
+        </div>
+        {upload && (
+          <span style={{ fontSize: 10, padding: '3px 9px', borderRadius: 99, fontWeight: 600,
+            background: upload.status === 'parsed' ? '#D1FAE5' : '#DBEAFE',
+            color: upload.status === 'parsed' ? '#065F46' : '#1D4ED8' }}>
+            {upload.status === 'parsed' ? '✓ Parsed' : 'Parsing…'}
+          </span>
+        )}
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {/* Drop zone or preview */}
+        {!upload ? (
+          <div
+            onDragOver={e => { e.preventDefault(); setDrag(true) }}
+            onDragLeave={() => setDrag(false)}
+            onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) handle(f) }}
+            onClick={() => ref.current?.click()}
+            style={{ border: `2px dashed ${drag ? Y : '#D1D5DB'}`, borderRadius: 10, padding: '24px 16px', textAlign: 'center', cursor: 'pointer', background: drag ? '#FFFBEB' : '#FAFAFA' }}>
+            <div style={{ fontSize: 26, marginBottom: 6 }}>📤</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#374151' }}>Drag & drop or click to upload</div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>PNG · JPG · PDF</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginBottom: 12 }}>
+            {upload.preview && <img src={upload.preview} alt="" style={{ width: 68, height: 50, objectFit: 'cover', borderRadius: 7, border: '1px solid #E5E7EB', flexShrink: 0 }} />}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{upload.fileName}</div>
+              <button onClick={() => ref.current?.click()} style={{ marginTop: 4, fontSize: 11, color: Y, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Replace ↑</button>
+            </div>
+          </div>
+        )}
+        <input ref={ref} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handle(f) }} />
+
+        {/* Parsing spinner */}
+        {upload?.status === 'parsing' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#2563EB', fontSize: 12, marginTop: 8 }}>
+            <span style={{ display: 'inline-block', width: 13, height: 13, border: '2px solid #BFDBFE', borderTopColor: '#2563EB', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            Analyzing screenshot…
+          </div>
+        )}
+
+        {/* Extracted data table */}
+        {upload?.status === 'parsed' && Object.keys(upload.data).length > 0 && (
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 4 }}>
+            <tbody>
+              {Object.entries(upload.data).map(([k, v]) => (
+                <tr key={k} style={{ borderBottom: '1px solid #F3F4F6' }}>
+                  <td style={{ padding: '6px 0', fontSize: 11, color: '#6B7280', width: '52%' }}>{k}</td>
+                  <td style={{ padding: '6px 0', fontSize: 11, color: '#111' }}>
+                    <InlineEdit value={v} onChange={nv => onEdit(cat, k, nv)} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {!upload && (
+          <button onClick={() => ref.current?.click()} style={{ width: '100%', marginTop: 10, padding: '9px', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+            Upload Screenshot
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── SMS Modal ────────────────────────────────────────────────────────────────
+function SMSModal({ a, onClose, onSend }: { a: Appraisal; onClose: () => void; onSend: () => void }) {
+  const msg = `Hi ${a.customer.name.split(' ')[0]}, your AutoLens Vehicle Report is ready.\n\nWe found a few items on your ${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}:\n${a.issues.slice(0, 3).map(i => `• ${i.label}`).join('\n')}\n\nView your full report here:\nautolens.ai/report/${a.id}\n\nReply STOP to opt out.`
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '28px', width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: '#111', marginBottom: 4 }}>Preview Text Message</div>
+        <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>This is exactly what {a.customer.name} will receive.</div>
+        <div style={{ background: '#F3F4F6', borderRadius: 16, padding: '16px', marginBottom: 20 }}>
+          <div style={{ fontSize: 10, color: '#9CA3AF', textAlign: 'center', marginBottom: 10 }}>AutoLens · Text Message</div>
+          <div style={{ background: '#fff', borderRadius: 14, borderBottomLeftRadius: 4, padding: '12px 14px', fontSize: 12, lineHeight: 1.7, color: '#111', whiteSpace: 'pre-wrap', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+            {msg}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '12px', borderRadius: 10, border: '1px solid #E5E7EB', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>Cancel</button>
+          <button onClick={onSend} style={{ flex: 2, padding: '12px', borderRadius: 10, border: 'none', background: Y, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>📤 Send Now</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Customer Report Preview ──────────────────────────────────────────────────
+function CustomerReportPreview({ a }: { a: Appraisal }) {
+  return (
+    <div style={{ maxWidth: 500, margin: '0 auto' }}>
+      <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 4 }}>Report #{a.id}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: '#111', marginBottom: 2 }}>Hi {a.customer.name.split(' ')[0]},</div>
+      <div style={{ fontSize: 14, color: '#6B7280', marginBottom: 24 }}>Here's your Vehicle Report — {a.createdAt}</div>
+      {/* Dark summary card */}
+      <div style={{ background: '#111827', borderRadius: 14, padding: '20px 24px', marginBottom: 24, color: '#fff' }}>
+        <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>{a.vehicle.year} {a.vehicle.make} {a.vehicle.model} {a.vehicle.trim}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          <div><div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>Estimated Value</div><div style={{ fontSize: 22, fontWeight: 900, color: Y }}>{fmt(a.estimatedValue)}</div></div>
+          <div><div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>Condition</div><div style={{ fontSize: 22, fontWeight: 900, color: '#10B981' }}>{a.conditionScore}<span style={{ fontSize: 11, color: '#6B7280' }}>/100</span></div></div>
+          <div><div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>Mileage</div><div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>{a.vehicle.mileage}</div><div style={{ fontSize: 10, color: '#6B7280' }}>miles</div></div>
+        </div>
+      </div>
+      {/* Issues */}
+      {a.issues.length > 0 && <>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 12 }}>Detected Issues</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 24 }}>
+          {a.issues.slice(0, 4).map(i => (
+            <div key={i.id} style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px', border: '1px solid #F3F4F6' }}>
+              <span style={{ fontSize: 10, background: SEV[i.severity].bg, color: SEV[i.severity].text, padding: '2px 7px', borderRadius: 99, fontWeight: 600 }}>{SEV[i.severity].label}</span>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginTop: 8 }}>{i.label}</div>
+              <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>Est. ${i.repairLow}–${i.repairHigh}</div>
+            </div>
+          ))}
+        </div>
+      </>}
+      {/* Recommendations */}
+      {a.recommendations.length > 0 && <>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 12 }}>Recommended Protections</div>
+        {PRODUCTS.filter(p => a.recommendations.includes(p.id)).map(p => (
+          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#F9FAFB', borderRadius: 10, marginBottom: 8, border: '1px solid #F3F4F6' }}>
+            <div><div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{p.label}</div><div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{p.desc}</div></div>
+            <span style={{ fontSize: 11, color: Y, fontWeight: 600, cursor: 'pointer' }}>Learn more →</span>
+          </div>
+        ))}
+      </>}
+      <div style={{ marginTop: 24 }}>
+        <button style={{ width: '100%', padding: '14px', background: Y, border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', marginBottom: 10 }}>View Full Report Online</button>
+        <button style={{ width: '100%', padding: '14px', background: '#F3F4F6', border: 'none', borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>Contact Us With Questions</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Checklist Card ───────────────────────────────────────────────────────────
+function ChecklistCard({ checklist }: { checklist: Record<string, boolean> }) {
+  const done = Object.values(checklist).filter(Boolean).length
+  const total = Object.values(checklist).length
+  const allDone = done === total
+  const LABELS: Record<string, string> = {
+    customerInfo: 'Customer info reviewed', vehicleInfo: 'Vehicle info reviewed',
+    photosReviewed: 'Photos reviewed', valuesReviewed: 'Values reviewed',
+    damageReviewed: 'Damage reviewed', recommendations: 'Recommendations selected',
+  }
+  return (
+    <div style={{ background: '#fff', border: `1px solid ${allDone ? '#A7F3D0' : '#E5E7EB'}`, borderRadius: 12, padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#111' }}>{allDone ? '✅ Ready to Send' : 'Review Checklist'}</div>
+        <div style={{ fontSize: 11, color: '#9CA3AF' }}>{done}/{total}</div>
+      </div>
+      {Object.entries(checklist).map(([key, isDone]) => (
+        <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: isDone ? '#D1FAE5' : '#F3F4F6' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: isDone ? '#059669' : '#D1D5DB' }}>{isDone ? '✓' : '○'}</span>
+          </div>
+          <span style={{ fontSize: 12, color: isDone ? '#374151' : '#9CA3AF', fontWeight: isDone ? 500 : 400 }}>{LABELS[key]}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -143,43 +390,84 @@ function ConditionGauge({ score }: { score: number }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Page() {
   const [appraisals, setAppraisals] = useState<Appraisal[]>(SEED)
-  const [selectedId, setSelectedId]   = useState('84291')
-  const [activeNav, setActiveNav]     = useState('Appraisals')
-  const [activeTab, setActiveTab]     = useState('photos')
-  const [editingVals, setEditingVals] = useState(false)
+  const [selectedId, setSelectedId] = useState('84291')
+  const [activeNav, setActiveNav]   = useState('Appraisals')
+  const [activeTab, setActiveTab]   = useState('photos')
+  const [notes, setNotes]           = useState('')
+  const [showSMS, setShowSMS]       = useState(false)
+
+  // Review state — tracks what manager has confirmed
+  const [photosReviewed,  setPhotosReviewed]  = useState(false)
+  const [valuesReviewed,  setValuesReviewed]  = useState(false)
+  const [damageReviewed,  setDamageReviewed]  = useState(false)
+
+  // Valuation uploads — TODO: replace fake parse with POST /api/parse-screenshot
+  const [uploads, setUploads] = useState<Record<UploadCat, ValUpload | null>>({ book: null, mmr: null, retail: null })
+
+  // Editable values state (per selected appraisal)
   const [vals, setVals] = useState({ retail: '43250', trade: '26800', wholesale: '24100' })
-  const [notes, setNotes] = useState('')
 
   const a = appraisals.find(x => x.id === selectedId)!
-  const update = (id: string, changes: Partial<Appraisal>) =>
+  const upd = (id: string, changes: Partial<Appraisal>) =>
     setAppraisals(prev => prev.map(x => x.id === id ? { ...x, ...changes } : x))
 
-  const saveVals = () => {
-    update(selectedId, { values: { retail: +vals.retail, trade: +vals.trade, wholesale: +vals.wholesale } })
-    setEditingVals(false)
+  // Checklist — derived from appraisal + review states
+  const checklist = {
+    customerInfo:    !!(a.customer.name && a.customer.phone),
+    vehicleInfo:     !!(a.vehicle.vin && a.vehicle.year && a.vehicle.make),
+    photosReviewed,
+    valuesReviewed,
+    damageReviewed,
+    recommendations: a.recommendations.length > 0,
+  }
+  const allDone = Object.values(checklist).every(Boolean)
+
+  // Workflow done state per step
+  const workflowDone = {
+    photos: photosReviewed,
+    values: valuesReviewed,
+    damage: damageReviewed,
+    report: allDone,
+    send:   a.status === 'sent',
+  }
+
+  // Handle valuation screenshot upload
+  const handleUpload = (cat: UploadCat, file: File) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      const preview = e.target?.result as string
+      setUploads(p => ({ ...p, [cat]: { fileName: file.name, preview, status: 'parsing', data: {} } }))
+      // Fake parse delay — replace with real AI call here
+      setTimeout(() => {
+        setUploads(p => ({ ...p, [cat]: { ...p[cat]!, status: 'parsed', data: { ...FAKE_PARSE[cat] } } }))
+      }, 2000)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleEditExtracted = (cat: UploadCat, key: string, val: string) => {
+    setUploads(p => ({ ...p, [cat]: { ...p[cat]!, data: { ...p[cat]!.data, [key]: val } } }))
+  }
+
+  const saveValues = () => {
+    upd(selectedId, { values: { retail: +vals.retail, trade: +vals.trade, wholesale: +vals.wholesale } })
   }
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'Inter,-apple-system,BlinkMacSystemFont,sans-serif', overflow: 'hidden', background: '#fff' }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+      {showSMS && <SMSModal a={a} onClose={() => setShowSMS(false)} onSend={() => { upd(a.id, { status: 'sent' }); setShowSMS(false) }} />}
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <div style={{ width: 220, background: '#111827', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      {/* ── Sidebar ───────────────────────────────────────── */}
+      <div style={{ width: 210, background: '#111827', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '22px 20px 18px', borderBottom: '1px solid #1F2937' }}>
           <Logo size={19} />
         </div>
-        <nav style={{ padding: '10px 8px', flex: 1, overflowY: 'auto' }}>
-          {NAV.map(({ icon, label }) => {
+        <nav style={{ padding: '10px 8px', flex: 1 }}>
+          {NAV.map(label => {
             const active = activeNav === label
             return (
-              <div key={label} onClick={() => setActiveNav(label)} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                cursor: 'pointer', transition: 'all 0.15s',
-                background: active ? Y : 'transparent',
-                color: active ? '#111' : '#6B7280',
-                fontSize: 13, fontWeight: active ? 700 : 400,
-              }}>
-                <span style={{ fontSize: 14, lineHeight: 1 }}>{icon}</span>
+              <div key={label} onClick={() => setActiveNav(label)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, marginBottom: 2, cursor: 'pointer', background: active ? Y : 'transparent', color: active ? '#111' : '#6B7280', fontSize: 13, fontWeight: active ? 700 : 400 }}>
                 {label}
               </div>
             )
@@ -190,12 +478,12 @@ export default function Page() {
         </div>
       </div>
 
-      {/* ── Queue ───────────────────────────────────────────────── */}
-      <div style={{ width: 272, background: '#F9FAFB', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+      {/* ── Queue ─────────────────────────────────────────── */}
+      <div style={{ width: 265, background: '#F9FAFB', borderRight: '1px solid #E5E7EB', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid #E5E7EB', background: '#fff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>Appraisals</div>
-            <button style={{ background: Y, border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', color: '#111' }}>+ New</button>
+            <button style={{ background: Y, border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>+ New</button>
           </div>
           <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
             {appraisals.length} total · {appraisals.filter(x => x.status === 'review').length} need review
@@ -203,21 +491,17 @@ export default function Page() {
         </div>
         <div style={{ overflowY: 'auto', flex: 1, padding: '10px 8px' }}>
           {appraisals.map(x => {
-            const s = STAT[x.status]
-            const sel = x.id === selectedId
+            const s = STAT[x.status], sel = x.id === selectedId
             return (
               <div key={x.id} onClick={() => {
                 setSelectedId(x.id)
                 setVals({ retail: String(x.values.retail), trade: String(x.values.trade), wholesale: String(x.values.wholesale) })
-                setEditingVals(false); setActiveTab('photos')
-              }} style={{
-                background: '#fff', border: `2px solid ${sel ? Y : '#E5E7EB'}`,
-                borderRadius: 10, padding: '12px 14px', marginBottom: 8,
-                cursor: 'pointer', transition: 'border-color 0.15s',
-              }}>
+                setPhotosReviewed(false); setValuesReviewed(false); setDamageReviewed(false)
+                setActiveTab('photos'); setUploads({ book: null, mmr: null, retail: null })
+              }} style={{ background: '#fff', border: `2px solid ${sel ? Y : '#E5E7EB'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{x.customer.name}</div>
-                  <span style={{ fontSize: 9, background: s.bg, color: s.text, padding: '2px 7px', borderRadius: 99, fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 6 }}>{s.label}</span>
+                  <span style={{ fontSize: 9, background: s.bg, color: s.text, padding: '2px 7px', borderRadius: 99, fontWeight: 600, marginLeft: 6, whiteSpace: 'nowrap' }}>{s.label}</span>
                 </div>
                 <div style={{ fontSize: 11, color: '#6B7280' }}>{x.vehicle.year} {x.vehicle.make} {x.vehicle.model}</div>
                 <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{x.createdAt}</div>
@@ -228,200 +512,255 @@ export default function Page() {
         </div>
       </div>
 
-      {/* ── Detail ──────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
+      {/* ── Detail ────────────────────────────────────────── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         {/* Header */}
-        <div style={{ padding: '18px 28px 14px', borderBottom: '1px solid #F3F4F6', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
-          <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 6, cursor: 'pointer' }}>← Back to Appraisals</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111' }}>Appraisal #{a.id}</h1>
-              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 99, fontWeight: 600, background: STAT[a.status].bg, color: STAT[a.status].text }}>{STAT[a.status].label}</span>
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#fff', fontSize: 12, fontWeight: 500, cursor: 'pointer', color: '#374151' }}>
-                ✏ Edit Vehicle Info
-              </button>
-              <button onClick={() => update(a.id, { status: 'sent' })} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: Y, fontSize: 12, fontWeight: 700, cursor: 'pointer', color: '#111' }}>
-                📤 Send to Customer
-              </button>
+        <div style={{ padding: '14px 24px', borderBottom: '1px solid #F3F4F6', background: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 3 }}>Appraisal #{a.id} · {a.createdAt}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#111' }}>{a.customer.name} — {a.vehicle.year} {a.vehicle.make} {a.vehicle.model}</div>
+              <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 99, fontWeight: 600, background: STAT[a.status].bg, color: STAT[a.status].text }}>{STAT[a.status].label}</span>
             </div>
           </div>
+          <button
+            onClick={() => allDone ? setShowSMS(true) : undefined}
+            style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: allDone ? Y : '#F3F4F6', fontSize: 13, fontWeight: 700, cursor: allDone ? 'pointer' : 'not-allowed', color: allDone ? '#111' : '#9CA3AF', transition: 'all 0.2s' }}
+            title={allDone ? 'Send to customer' : 'Complete checklist first'}>
+            📤 Send to Customer
+          </button>
         </div>
 
-        <div style={{ padding: '20px 28px 40px' }}>
+        {/* Workflow bar */}
+        <WorkflowBar activeTab={activeTab} setActiveTab={setActiveTab} done={workflowDone} />
 
-          {/* Customer + Vehicle + Photo */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 148px', gap: 14, marginBottom: 18 }}>
-            <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', border: '1px solid #F3F4F6' }}>
-              <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>Customer</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>{a.customer.name}</div>
-              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>{a.customer.phone}</div>
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={{ padding: '20px 24px 0' }}>
+
+            {/* Customer + Vehicle row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 140px', gap: 12, marginBottom: 16 }}>
+              <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', border: '1px solid #F3F4F6' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>Customer</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>{a.customer.name}</div>
+                <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>{a.customer.phone}</div>
+              </div>
+              <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', border: '1px solid #F3F4F6' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>Vehicle</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{a.vehicle.year} {a.vehicle.make} {a.vehicle.model} {a.vehicle.trim}</div>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>VIN: {a.vehicle.vin} · {a.vehicle.mileage} mi · {a.vehicle.color}</div>
+              </div>
+              <div style={{ background: '#1F2937', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 5, cursor: 'pointer' }}>
+                <svg width={36} height={26} viewBox="0 0 24 24" fill="#4B5563"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+                <div style={{ fontSize: 9, color: '#4B5563' }}>No photo</div>
+              </div>
             </div>
-            <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '14px 16px', border: '1px solid #F3F4F6' }}>
-              <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 }}>Vehicle</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{a.vehicle.year} {a.vehicle.make} {a.vehicle.model} {a.vehicle.trim}</div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 3 }}>VIN: {a.vehicle.vin} · {a.vehicle.mileage} mi · {a.vehicle.color}</div>
-            </div>
-            <div style={{ background: '#1F2937', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 6 }}>
-              <svg width={40} height={28} viewBox="0 0 24 24" fill="#4B5563">
-                <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
-              </svg>
-              <div style={{ fontSize: 9, color: '#4B5563' }}>No photo</div>
+
+            {/* Metric cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 12, padding: '16px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 10 }}>Estimated Value</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: '#111', lineHeight: 1 }}>{fmt(a.estimatedValue)}</div>
+                <div style={{ fontSize: 10, color: '#10B981', fontWeight: 500, marginTop: 8 }}>● High confidence</div>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 12, padding: '16px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 4, alignSelf: 'flex-start' }}>Condition Score</div>
+                <ConditionGauge score={a.conditionScore} />
+              </div>
+              <div style={{ background: '#fff', borderRadius: 12, padding: '16px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 10 }}>Issues Found</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: a.issues.length > 0 ? '#D97706' : '#10B981', lineHeight: 1 }}>{a.issues.length}</div>
+                <div style={{ fontSize: 11, color: '#6B7280', marginTop: 8 }}>{a.issues.filter(i => i.severity === 'high').length} high severity</div>
+              </div>
+              <div style={{ background: '#fff', borderRadius: 12, padding: '16px', border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 10 }}>Checklist</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: allDone ? '#10B981' : '#111', lineHeight: 1 }}>
+                  {Object.values(checklist).filter(Boolean).length}<span style={{ fontSize: 14, color: '#9CA3AF', fontWeight: 400 }}>/{Object.values(checklist).length}</span>
+                </div>
+                <div style={{ fontSize: 11, color: allDone ? '#10B981' : '#6B7280', marginTop: 8 }}>{allDone ? '✓ Ready to send' : 'Items remaining'}</div>
+              </div>
             </div>
           </div>
 
-          {/* 4 Metric Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
-
-            {/* AI Est Value */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: '18px', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 500, marginBottom: 12 }}>AI Estimated Market Value</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: '#111', lineHeight: 1 }}>{fmt(a.estimatedValue)}</div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginTop: 6 }}>Retail Value</div>
-              <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #F3F4F6' }}>
-                <div style={{ fontSize: 10, color: '#10B981', fontWeight: 600 }}>● Confidence: High</div>
-              </div>
-            </div>
-
-            {/* Condition Score */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: '18px', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 500, marginBottom: 4, alignSelf: 'flex-start' }}>Overall Condition Score</div>
-              <ConditionGauge score={a.conditionScore} />
-            </div>
-
-            {/* Detected Issues */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: '18px', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 500 }}>Detected Issues</div>
-                <span style={{ background: '#FEF3C7', color: '#B45309', width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>{a.issues.length}</span>
-              </div>
-              {a.issues.slice(0, 4).map(i => (
-                <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <div style={{ fontSize: 11, color: '#374151', flex: 1, paddingRight: 6 }}>{i.label}</div>
-                  <span style={{ fontSize: 9, background: SEV[i.severity].bg, color: SEV[i.severity].text, padding: '2px 7px', borderRadius: 99, fontWeight: 600, flexShrink: 0 }}>{SEV[i.severity].label}</span>
-                </div>
-              ))}
-              <div style={{ fontSize: 11, color: Y, marginTop: 6, cursor: 'pointer', fontWeight: 500 }}>View all issues →</div>
-            </div>
-
-            {/* Manager Adjustments */}
-            <div style={{ background: '#fff', borderRadius: 12, padding: '18px', border: '1px solid #E5E7EB', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <div style={{ fontSize: 10, color: '#9CA3AF', fontWeight: 500 }}>Manager Adjustments</div>
-                <button onClick={() => setEditingVals(v => !v)} style={{ fontSize: 10, color: Y, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>{editingVals ? 'Cancel' : '✏ Edit'}</button>
-              </div>
-              {(['retail','trade','wholesale'] as const).map((k, idx) => (
-                <div key={k} style={{ marginBottom: idx < 2 ? 12 : 0 }}>
-                  <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 3 }}>
-                    {k === 'retail' ? 'Retail Value' : k === 'trade' ? 'Trade Value' : 'Wholesale Value'}
-                  </div>
-                  {editingVals ? (
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E5E7EB', borderRadius: 7, overflow: 'hidden', background: '#F9FAFB' }}>
-                      <span style={{ padding: '5px 8px', fontSize: 12, color: '#6B7280', borderRight: '1px solid #E5E7EB', background: '#F3F4F6' }}>$</span>
-                      <input type="number" value={vals[k]} onChange={e => setVals(p => ({ ...p, [k]: e.target.value }))}
-                        style={{ flex: 1, border: 'none', background: 'transparent', padding: '5px 8px', fontSize: 13, fontWeight: 600, outline: 'none' }} />
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>$ {a.values[k].toLocaleString()}</div>
-                  )}
-                </div>
-              ))}
-              {editingVals && (
-                <button onClick={saveVals} style={{ width: '100%', marginTop: 12, background: Y, border: 'none', borderRadius: 7, padding: '7px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
-                  Save Changes
-                </button>
-              )}
-            </div>
-
-          </div>
-
-          {/* Tabs + Content */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 20 }}>
-            <div>
-              {/* Tab Bar */}
-              <div style={{ display: 'flex', borderBottom: '2px solid #F3F4F6', marginBottom: 18 }}>
-                {[['photos','Photos'],['damage','Damage & Issues'],['vehicle','Vehicle Info'],['history','History'],['notes','Notes']].map(([k, l]) => (
-                  <button key={k} onClick={() => setActiveTab(k)} style={{
-                    padding: '8px 14px', border: 'none', background: 'none', fontSize: 12,
-                    fontWeight: activeTab === k ? 600 : 400, cursor: 'pointer',
-                    color: activeTab === k ? '#111' : '#9CA3AF',
-                    borderBottom: `2px solid ${activeTab === k ? Y : 'transparent'}`,
-                    marginBottom: -2,
-                  }}>{l}</button>
+          {/* Tabs + content + right sidebar */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 230px', gap: 0, padding: '0 24px 40px' }}>
+            <div style={{ paddingRight: 20 }}>
+              {/* Tab bar */}
+              <div style={{ display: 'flex', borderBottom: '2px solid #F3F4F6', marginBottom: 20 }}>
+                {TABS.map(({ k, l }) => (
+                  <button key={k} onClick={() => setActiveTab(k)} style={{ padding: '10px 14px', border: 'none', background: 'none', fontSize: 13, fontWeight: activeTab === k ? 700 : 400, cursor: 'pointer', color: activeTab === k ? '#111' : '#9CA3AF', borderBottom: `2px solid ${activeTab === k ? Y : 'transparent'}`, marginBottom: -2, whiteSpace: 'nowrap' }}>
+                    {l}
+                  </button>
                 ))}
               </div>
 
-              {/* Photos */}
+              {/* ── Photos ───────────────────────────────────── */}
               {activeTab === 'photos' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-                  {['Front Left','Front','Front Right','Rear Side','Rear','Left Side','Interior'].map(lbl => (
-                    <div key={lbl} style={{ background: '#F3F4F6', borderRadius: 8, aspectRatio: '4/3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 10, color: '#9CA3AF' }}>
-                      <span style={{ fontSize: 22 }}>📷</span>{lbl}
-                    </div>
-                  ))}
-                  <div style={{ background: '#1F2937', borderRadius: 8, aspectRatio: '4/3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#fff' }}>+12 More</div>
-                </div>
-              )}
-
-              {/* Damage */}
-              {activeTab === 'damage' && (
                 <div>
-                  {a.issues.length === 0
-                    ? <div style={{ color: '#9CA3AF', fontSize: 13, padding: '20px 0' }}>No issues detected yet.</div>
-                    : a.issues.map(i => (
-                      <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: '#F9FAFB', borderRadius: 10, marginBottom: 8, border: '1px solid #F3F4F6' }}>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{i.label}</div>
-                          <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>Est. Repair: ${i.repairLow}–${i.repairHigh}</div>
-                        </div>
-                        <span style={{ fontSize: 11, background: SEV[i.severity].bg, color: SEV[i.severity].text, padding: '3px 10px', borderRadius: 99, fontWeight: 600 }}>{SEV[i.severity].label}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
+                    {['Front','Front Left','Front Right','Rear','Rear Left','Rear Right','Left Side','Right Side','Interior','Engine','Odometer'].map(lbl => (
+                      <div key={lbl} style={{ background: '#F9FAFB', borderRadius: 8, aspectRatio: '4/3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', border: '2px dashed #E5E7EB' }}>
+                        <span style={{ fontSize: 20 }}>📷</span>
+                        <span style={{ fontSize: 9, color: '#9CA3AF' }}>{lbl}</span>
                       </div>
-                    ))
+                    ))}
+                    <div style={{ background: '#F9FAFB', borderRadius: 8, aspectRatio: '4/3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', border: `2px dashed ${Y}` }}>
+                      <span style={{ fontSize: 20, color: Y }}>+</span>
+                      <span style={{ fontSize: 9, color: Y, fontWeight: 600 }}>Add Photo</span>
+                    </div>
+                  </div>
+                  <div style={{ padding: '12px 16px', background: '#FFF9E6', borderRadius: 10, border: '1px solid #FDE68A', fontSize: 12, color: '#92400E', marginBottom: 16 }}>
+                    📷 No photos uploaded yet — photos build customer confidence in the report.
+                  </div>
+                  {!photosReviewed
+                    ? <button onClick={() => setPhotosReviewed(true)} style={{ width: '100%', padding: '13px', background: Y, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✓ Mark Photos as Reviewed</button>
+                    : <div style={{ padding: '12px 16px', background: '#D1FAE5', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#065F46', textAlign: 'center' }}>✅ Photos reviewed</div>
                   }
                 </div>
               )}
 
-              {/* Vehicle Info */}
+              {/* ── Values ───────────────────────────────────── */}
+              {activeTab === 'values' && (
+                <div>
+                  {/* Editable value fields */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 24 }}>
+                    {([['Retail Value', 'retail'], ['Trade-In Value', 'trade'], ['Wholesale Value', 'wholesale']] as const).map(([label, key]) => (
+                      <div key={key} style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px' }}>
+                        <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 8 }}>{label}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E5E7EB', borderRadius: 8, overflow: 'hidden', background: '#F9FAFB' }}>
+                          <span style={{ padding: '8px 10px', fontSize: 13, color: '#6B7280', borderRight: '1px solid #E5E7EB', background: '#F3F4F6' }}>$</span>
+                          <input type="number" value={vals[key]} onChange={e => setVals(p => ({ ...p, [key]: e.target.value }))}
+                            style={{ flex: 1, border: 'none', background: 'transparent', padding: '8px 10px', fontSize: 16, fontWeight: 700, outline: 'none', color: '#111' }} />
+                        </div>
+                        <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 6 }}>✎ Click to edit</div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={saveValues} style={{ marginBottom: 24, padding: '9px 20px', background: Y, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                    Save Values
+                  </button>
+
+                  {/* AI Valuation Summary */}
+                  {(uploads.book?.status === 'parsed' || uploads.mmr?.status === 'parsed' || uploads.retail?.status === 'parsed') && (
+                    <div style={{ background: '#111827', borderRadius: 12, padding: '18px 20px', marginBottom: 24, border: '1px solid #1F2937' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 14 }}>AI Valuation Summary</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        {[
+                          ['Book Value Avg', uploads.book?.status === 'parsed' ? '$42,633' : '—'],
+                          ['MMR Wholesale Avg', uploads.mmr?.status === 'parsed' ? '$39,350' : '—'],
+                          ['Retail Comp Avg', uploads.retail?.status === 'parsed' ? '$44,600' : '—'],
+                          ['Suggested Retail', uploads.book?.status === 'parsed' ? '$44,200' : '—'],
+                        ].map(([l, v]) => (
+                          <div key={l} style={{ background: '#1F2937', borderRadius: 8, padding: '12px 14px' }}>
+                            <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>{l}</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: v === '—' ? '#374151' : Y }}>{v}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Upload cards */}
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#111', marginBottom: 14 }}>Upload Valuation Sources</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+                    {(['book', 'mmr', 'retail'] as UploadCat[]).map(cat => (
+                      <UploadCard key={cat} cat={cat} upload={uploads[cat]} onFile={handleUpload} onEdit={handleEditExtracted} />
+                    ))}
+                  </div>
+
+                  {!valuesReviewed
+                    ? <button onClick={() => setValuesReviewed(true)} style={{ width: '100%', padding: '13px', background: Y, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✓ Mark Values as Reviewed</button>
+                    : <div style={{ padding: '12px 16px', background: '#D1FAE5', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#065F46', textAlign: 'center' }}>✅ Values reviewed</div>
+                  }
+                </div>
+              )}
+
+              {/* ── Damage ───────────────────────────────────── */}
+              {activeTab === 'damage' && (
+                <div>
+                  {a.issues.length === 0 ? (
+                    <div style={{ padding: '32px', textAlign: 'center', background: '#F9FAFB', borderRadius: 12, border: '2px dashed #E5E7EB', marginBottom: 20 }}>
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>✅</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#111', marginBottom: 4 }}>No damage confirmed yet</div>
+                      <div style={{ fontSize: 12, color: '#9CA3AF' }}>Issues will appear here once photos are analyzed</div>
+                    </div>
+                  ) : (
+                    <div style={{ marginBottom: 20 }}>
+                      {a.issues.map(i => (
+                        <div key={i.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 18px', background: '#F9FAFB', borderRadius: 12, marginBottom: 10, border: '1px solid #F3F4F6' }}>
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{i.label}</div>
+                            <div style={{ fontSize: 12, color: '#6B7280', marginTop: 3 }}>Est. repair: ${i.repairLow.toLocaleString()} – ${i.repairHigh.toLocaleString()}</div>
+                          </div>
+                          <span style={{ fontSize: 11, background: SEV[i.severity].bg, color: SEV[i.severity].text, padding: '4px 12px', borderRadius: 99, fontWeight: 700 }}>{SEV[i.severity].label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!damageReviewed
+                    ? <button onClick={() => setDamageReviewed(true)} style={{ width: '100%', padding: '13px', background: Y, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>✓ Mark Damage as Reviewed</button>
+                    : <div style={{ padding: '12px 16px', background: '#D1FAE5', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#065F46', textAlign: 'center' }}>✅ Damage reviewed</div>
+                  }
+                </div>
+              )}
+
+              {/* ── Vehicle Info ─────────────────────────────── */}
               {activeTab === 'vehicle' && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   {[['Year', a.vehicle.year],['Make', a.vehicle.make],['Model', a.vehicle.model],['Trim', a.vehicle.trim],['VIN', a.vehicle.vin],['Mileage', a.vehicle.mileage + ' mi'],['Color', a.vehicle.color]].map(([l, v]) => (
-                    <div key={l} style={{ padding: '12px 14px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #F3F4F6' }}>
-                      <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{l}</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: '#111' }}>{v}</div>
+                    <div key={l} style={{ padding: '14px 16px', background: '#F9FAFB', borderRadius: 10, border: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 10, color: '#9CA3AF', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{l}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#111' }}>{v || '—'}</div>
+                      </div>
+                      <button style={{ background: 'none', border: '1px solid #E5E7EB', borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer', color: '#6B7280' }}>✎ Edit</button>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Notes */}
+              {/* ── Notes ────────────────────────────────────── */}
               {activeTab === 'notes' && (
                 <div>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add internal notes about this appraisal..."
-                    style={{ width: '100%', minHeight: 140, border: '1px solid #E5E7EB', borderRadius: 10, padding: 14, fontSize: 13, color: '#374151', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
-                  <button onClick={() => update(a.id, { notes })} style={{ marginTop: 8, padding: '8px 18px', background: Y, border: 'none', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Save Notes</button>
+                  <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add internal notes visible only to your team..."
+                    style={{ width: '100%', minHeight: 160, border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px', fontSize: 13, color: '#374151', resize: 'vertical', outline: 'none', boxSizing: 'border-box', lineHeight: 1.7 }} />
+                  <button onClick={() => upd(a.id, { notes })} style={{ marginTop: 8, padding: '10px 20px', background: Y, border: 'none', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save Notes</button>
                 </div>
               )}
 
-              {activeTab === 'history' && (
-                <div style={{ color: '#9CA3AF', fontSize: 13, padding: '20px 0' }}>No history yet.</div>
+              {/* ── Customer Report Preview ───────────────────── */}
+              {activeTab === 'report' && (
+                <div>
+                  <div style={{ padding: '12px 16px', background: '#FFFBEB', borderRadius: 10, border: '1px solid #FDE68A', fontSize: 12, color: '#92400E', marginBottom: 20 }}>
+                    👁 <strong>Preview only</strong> — this is exactly what {a.customer.name} will see.
+                  </div>
+                  <CustomerReportPreview a={a} />
+                </div>
               )}
             </div>
 
-            {/* Recommended Protections */}
-            <div style={{ background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '18px', height: 'fit-content', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#111', marginBottom: 14 }}>Recommended Protections</div>
-              {PRODUCTS.filter(p => a.recommendations.includes(p.id)).map(p => (
-                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: '#374151', flex: 1 }}>{p.label}</div>
-                  <span style={{ width: 18, height: 18, background: Y, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <svg width={10} height={10} viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#111" strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  </span>
-                </div>
-              ))}
-              <div style={{ borderTop: '1px solid #F3F4F6', marginTop: 6, paddingTop: 12 }}>
-                <div style={{ fontSize: 11, color: Y, cursor: 'pointer', fontWeight: 500 }}>View all products →</div>
+            {/* ── Right Sidebar ─────────────────────────────── */}
+            <div>
+              <ChecklistCard checklist={checklist} />
+              <div style={{ marginTop: 16, background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '16px', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#111', marginBottom: 14 }}>Protection Products</div>
+                {a.recommendations.length === 0 && <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 12 }}>No products selected yet</div>}
+                {PRODUCTS.map(p => {
+                  const checked = a.recommendations.includes(p.id)
+                  return (
+                    <div key={p.id} onClick={() => { const r = checked ? a.recommendations.filter(x => x !== p.id) : [...a.recommendations, p.id]; upd(a.id, { recommendations: r }) }}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
+                      <div style={{ width: 17, height: 17, borderRadius: 4, background: checked ? Y : '#F3F4F6', border: `1px solid ${checked ? Y : '#D1D5DB'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                        {checked && <svg width={9} height={9} viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="#111" strokeWidth={2} fill="none" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#111' }}>{p.label}</div>
+                        <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 1 }}>{p.desc}</div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
