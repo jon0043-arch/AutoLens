@@ -444,6 +444,25 @@ export default function Page() {
   const doneCount = Object.values(checklist).filter(Boolean).length
   const allDone = doneCount === 6
 
+  const handlePhotoUpload = useCallback((angle: string, file: File) => {
+  const id = `${angle}-${Date.now()}`
+  setPhotos(prev => [
+    ...prev.filter(p => p.angle !== angle),
+    { id, angle, preview: '', uploading: true },
+  ])
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    const preview = e.target?.result as string
+    setTimeout(() => {
+      setPhotos(prev => prev.map(p => p.id === id ? { ...p, preview, uploading: false } : p))
+    }, 900)
+  }
+  reader.readAsDataURL(file)
+}, [])
+
+const handlePhotoDelete = useCallback((id: string) => {
+  setPhotos(prev => prev.filter(p => p.id !== id))
+}, [])
   const handleUpload = (cat: UploadCat, file: File) => {
     const reader = new FileReader()
     reader.onload = (event) => {
