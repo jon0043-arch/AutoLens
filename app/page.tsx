@@ -424,6 +424,8 @@ export default function Page() {
   const [valuesOk, setValuesOk] = useState(false)
   const [damageOk, setDamageOk] = useState(false)
   const [notes, setNotes] = useState('')
+  const [photos, setPhotos]     = useState<Photo[]>([])
+  const [zoomSrc, setZoomSrc]   = useState<string | null>(null)
   const [uploads, setUploads] = useState<Record<UploadCat, ValUpload | null>>({ book: null, mmr: null, retail: null })
   const [vals, setVals] = useState({ retail: '43250', trade: '26800', wholesale: '24100' })
 
