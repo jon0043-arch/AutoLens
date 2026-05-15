@@ -84,15 +84,7 @@ const SEED: Appraisal[] = [
     status: 'review',
     createdAt: 'May 12, 2:45 PM',
     customer: { name: 'Mike Johnson', phone: '(305) 555-1234' },
-    vehicle: {
-      year: '2020',
-      make: 'Land Rover',
-      model: 'Range Rover Sport',
-      trim: 'HSE',
-      vin: 'SALWR2RV2LA123456',
-      mileage: '58,342',
-      color: 'Black',
-    },
+    vehicle: { year: '2020', make: 'Land Rover', model: 'Range Rover Sport', trim: 'HSE', vin: 'SALWR2RV2LA123456', mileage: '58,342', color: 'Black' },
     issues: [
       { id: 'i1', label: 'Front Right Wheel Damage', severity: 'moderate', repairLow: 150, repairHigh: 300 },
       { id: 'i2', label: 'Windshield Chip', severity: 'low', repairLow: 75, repairHigh: 150 },
@@ -110,15 +102,7 @@ const SEED: Appraisal[] = [
     status: 'approved',
     createdAt: 'May 12, 12:30 PM',
     customer: { name: 'Sarah Williams', phone: '(305) 555-5678' },
-    vehicle: {
-      year: '2021',
-      make: 'Mercedes-Benz',
-      model: 'GLE',
-      trim: '350 4MATIC',
-      vin: 'W1N0G8EB4MF123456',
-      mileage: '31,200',
-      color: 'Silver',
-    },
+    vehicle: { year: '2021', make: 'Mercedes-Benz', model: 'GLE', trim: '350 4MATIC', vin: 'W1N0G8EB4MF123456', mileage: '31,200', color: 'Silver' },
     issues: [{ id: 'i5', label: 'Minor Paint Scratch', severity: 'low', repairLow: 100, repairHigh: 300 }],
     values: { retail: 52000, trade: 38000, wholesale: 35000 },
     estimatedValue: 51500,
@@ -131,15 +115,7 @@ const SEED: Appraisal[] = [
     status: 'pending',
     createdAt: 'May 12, 11:05 AM',
     customer: { name: 'Chris Davis', phone: '(305) 555-3456' },
-    vehicle: {
-      year: '2019',
-      make: 'Audi',
-      model: 'Q7',
-      trim: 'Premium Plus',
-      vin: 'WA1BXAF75KD012345',
-      mileage: '44,100',
-      color: 'White',
-    },
+    vehicle: { year: '2019', make: 'Audi', model: 'Q7', trim: 'Premium Plus', vin: 'WA1BXAF75KD012345', mileage: '44,100', color: 'White' },
     issues: [],
     values: { retail: 0, trade: 0, wholesale: 0 },
     estimatedValue: 0,
@@ -152,15 +128,7 @@ const SEED: Appraisal[] = [
     status: 'sent',
     createdAt: 'May 12, 10:30 AM',
     customer: { name: 'James Wilson', phone: '(305) 555-7890' },
-    vehicle: {
-      year: '2020',
-      make: 'Ford',
-      model: 'F-150',
-      trim: 'XLT',
-      vin: '1FTEW1E53KFA12345',
-      mileage: '67,890',
-      color: 'Blue',
-    },
+    vehicle: { year: '2020', make: 'Ford', model: 'F-150', trim: 'XLT', vin: '1FTEW1E53KFA12345', mileage: '67,890', color: 'Blue' },
     issues: [
       { id: 'i6', label: 'Bed Liner Damage', severity: 'low', repairLow: 200, repairHigh: 500 },
       { id: 'i7', label: 'Front Bumper Scuff', severity: 'moderate', repairLow: 300, repairHigh: 700 },
@@ -174,6 +142,7 @@ const SEED: Appraisal[] = [
 ]
 
 const fmt = (n: number) => (n > 0 ? `$${n.toLocaleString()}` : '—')
+const softShadow = '0 12px 34px rgba(40,34,25,0.08)'
 
 const shell: React.CSSProperties = {
   display: 'flex',
@@ -184,26 +153,11 @@ const shell: React.CSSProperties = {
   fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
 }
 
-const softShadow = '0 12px 34px rgba(40,34,25,0.08)'
-
 function Logo({ size = 18, light = false }: { size?: number; light?: boolean }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: size, letterSpacing: -0.5, lineHeight: 1 }}>
       <span style={{ color: light ? '#fff' : INK }}>Aut</span>
-      <span
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: size * 1.1,
-          height: size * 1.1,
-          borderRadius: '50%',
-          background: GOLD,
-          color: '#fff',
-          margin: '0 1px',
-          fontSize: size * 0.5,
-        }}
-      >
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size * 1.1, height: size * 1.1, borderRadius: '50%', background: GOLD, color: '#fff', margin: '0 1px', fontSize: size * 0.5 }}>
         AL
       </span>
       <span style={{ color: light ? '#fff' : INK }}>Lens</span>
@@ -213,43 +167,15 @@ function Logo({ size = 18, light = false }: { size?: number; light?: boolean }) 
 
 function VehicleHero({ a }: { a: Appraisal }) {
   const scoreColor = a.conditionScore >= 85 ? '#4CAF80' : a.conditionScore >= 70 ? GOLD : '#B84040'
-
   return (
-    <section
-      style={{
-        margin: 24,
-        marginBottom: 0,
-        borderRadius: 26,
-        overflow: 'hidden',
-        background: `linear-gradient(135deg, ${CHAR}, #343230)`,
-        boxShadow: '0 22px 70px rgba(35,30,25,0.20)',
-        flexShrink: 0,
-      }}
-    >
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '170px minmax(360px, 1fr) 170px',
-          alignItems: 'center',
-          gap: 20,
-          padding: '28px 34px 20px',
-          minHeight: 300,
-        }}
-      >
+    <section style={{ margin: 24, marginBottom: 0, borderRadius: 26, overflow: 'hidden', background: `linear-gradient(135deg, ${CHAR}, #343230)`, boxShadow: '0 22px 70px rgba(35,30,25,0.20)', flexShrink: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '170px minmax(360px, 1fr) 170px', alignItems: 'center', gap: 20, padding: '28px 34px 20px', minHeight: 300 }}>
         <HeroMetric label="Estimated Value" value={fmt(a.estimatedValue)} />
         <div style={{ textAlign: 'center', minWidth: 0 }}>
           <img
-            src="/luxury-suv-hero.png"
+            src="/vehicle-hero.png"
             alt={`${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}`}
-            style={{
-              width: '100%',
-              maxWidth: 620,
-              height: 220,
-              objectFit: 'contain',
-              display: 'block',
-              margin: '0 auto',
-              filter: 'saturate(.96) contrast(.98)',
-            }}
+            style={{ width: '100%', maxWidth: 620, height: 220, objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'saturate(.96) contrast(.98)' }}
           />
           <div style={{ color: 'rgba(255,255,255,.42)', fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' }}>
             {a.vehicle.year} · {a.vehicle.make} {a.vehicle.model} · {a.vehicle.mileage} mi
@@ -298,7 +224,6 @@ function InspectionStatus({ checklist, allDone, doneCount }: { checklist: Record
     ['damageReviewed', 'Damage assessment'],
     ['recommendations', 'Product selection'],
   ] as const
-
   return (
     <section style={panelStyle()}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -312,19 +237,7 @@ function InspectionStatus({ checklist, allDone, doneCount }: { checklist: Record
         const done = checklist[key]
         return (
           <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 13 }}>
-            <span
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: '50%',
-                display: 'grid',
-                placeItems: 'center',
-                background: done ? GOLD : SURF,
-                color: '#fff',
-                fontSize: 11,
-                flexShrink: 0,
-              }}
-            >
+            <span style={{ width: 18, height: 18, borderRadius: '50%', display: 'grid', placeItems: 'center', background: done ? GOLD : SURF, color: '#fff', fontSize: 11, flexShrink: 0 }}>
               {done ? '✓' : ''}
             </span>
             <span style={{ fontSize: 12, color: done ? INK : DIM, fontWeight: done ? 560 : 400 }}>{label}</span>
@@ -338,51 +251,27 @@ function InspectionStatus({ checklist, allDone, doneCount }: { checklist: Record
 function InlineEdit({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
-
   if (editing) {
     return (
-      <input
-        autoFocus
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={() => {
-          onChange(draft)
-          setEditing(false)
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            onChange(draft)
-            setEditing(false)
-          }
-        }}
+      <input autoFocus value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { onChange(draft); setEditing(false) }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { onChange(draft); setEditing(false) } }}
         style={{ width: '100%', border: 'none', borderBottom: `1.5px solid ${GOLD}`, outline: 'none', fontSize: 12, background: 'transparent', color: INK }}
       />
     )
   }
-
   return (
     <span onClick={() => setEditing(true)} style={{ cursor: 'text', fontWeight: 560, color: INK }}>
-      {value}
-      <span style={{ color: DIM, marginLeft: 4, fontSize: 9 }}>edit</span>
+      {value}<span style={{ color: DIM, marginLeft: 4, fontSize: 9 }}>edit</span>
     </span>
   )
 }
 
-function UploadCard({
-  cat,
-  upload,
-  onFile,
-  onEdit,
-}: {
-  cat: UploadCat
-  upload: ValUpload | null
-  onFile: (c: UploadCat, f: File) => void
-  onEdit: (c: UploadCat, k: string, v: string) => void
-}) {
+function UploadCard({ cat, upload, onFile, onEdit }: { cat: UploadCat; upload: ValUpload | null; onFile: (c: UploadCat, f: File) => void; onEdit: (c: UploadCat, k: string, v: string) => void }) {
   const ref = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState(false)
   const { title, sources } = UPLOAD_META[cat]
-
   return (
     <div style={{ background: CARD, borderRadius: 14, border: `1px solid ${drag ? GOLD : LINE}`, overflow: 'hidden', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
       <div style={{ padding: '14px 16px 10px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', gap: 10 }}>
@@ -394,28 +283,11 @@ function UploadCard({
       </div>
       <div style={{ padding: 16 }}>
         {!upload ? (
-          <div
-            onClick={() => ref.current?.click()}
-            onDragOver={(event) => {
-              event.preventDefault()
-              setDrag(true)
-            }}
+          <div onClick={() => ref.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(event) => {
-              event.preventDefault()
-              setDrag(false)
-              const file = event.dataTransfer.files[0]
-              if (file) onFile(cat, file)
-            }}
-            style={{
-              border: `1.5px dashed ${drag ? GOLD : LINE}`,
-              borderRadius: 10,
-              padding: 20,
-              textAlign: 'center',
-              cursor: 'pointer',
-              background: drag ? '#FAF8F2' : SURF,
-            }}
-          >
+            onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) onFile(cat, f) }}
+            style={{ border: `1.5px dashed ${drag ? GOLD : LINE}`, borderRadius: 10, padding: 20, textAlign: 'center', cursor: 'pointer', background: drag ? '#FAF8F2' : SURF }}>
             <div style={{ fontSize: 12, color: MUTED }}>Drop or click to upload</div>
             <div style={{ fontSize: 10, color: DIM, marginTop: 3 }}>PNG · JPG · PDF</div>
           </div>
@@ -435,9 +307,7 @@ function UploadCard({
                   {Object.entries(upload.data).map(([key, value]) => (
                     <tr key={key} style={{ borderBottom: `1px solid ${LINE}` }}>
                       <td style={{ padding: '6px 0', fontSize: 10, color: DIM, width: '48%' }}>{key}</td>
-                      <td style={{ padding: '6px 0', fontSize: 11 }}>
-                        <InlineEdit value={value} onChange={(next) => onEdit(cat, key, next)} />
-                      </td>
+                      <td style={{ padding: '6px 0', fontSize: 11 }}><InlineEdit value={value} onChange={(next) => onEdit(cat, key, next)} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -445,21 +315,17 @@ function UploadCard({
             )}
           </>
         )}
-        <input ref={ref} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={(event) => {
-          const file = event.target.files?.[0]
-          if (file) onFile(cat, file)
-        }} />
+        <input ref={ref} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(cat, f) }} />
       </div>
     </div>
   )
 }
 
 function SMSModal({ a, onClose, onSend }: { a: Appraisal; onClose: () => void; onSend: () => void }) {
-  const msg = `Hi ${a.customer.name.split(' ')[0]}, your AutoLens Vehicle Report is ready.\n\nWe found a few items on your ${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}:\n${a.issues.slice(0, 3).map((issue) => `- ${issue.label}`).join('\n')}\n\nView your full report:\nautolens.ai/report/${a.id}\n\nReply STOP to opt out.`
-
+  const msg = `Hi ${a.customer.name.split(' ')[0]}, your AutoLens Vehicle Report is ready.\n\nWe found a few items on your ${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}:\n${a.issues.slice(0, 3).map((i) => `- ${i.label}`).join('\n')}\n\nView your full report:\nautolens.ai/report/${a.id}\n\nReply STOP to opt out.`
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(26,26,28,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', backdropFilter: 'blur(6px)' }}>
-      <div onClick={(event) => event.stopPropagation()} style={{ background: CARD, borderRadius: 22, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.18)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: CARD, borderRadius: 22, padding: 32, width: 420, boxShadow: '0 24px 64px rgba(0,0,0,0.18)' }}>
         <div style={{ fontSize: 19, fontWeight: 760, marginBottom: 4 }}>Text Message Preview</div>
         <div style={{ fontSize: 12, color: DIM, marginBottom: 24 }}>Exactly what {a.customer.name} will receive.</div>
         <div style={{ background: SURF, borderRadius: 16, padding: 18, marginBottom: 24 }}>
@@ -493,18 +359,16 @@ function ReportPreview({ a }: { a: Appraisal }) {
             <ReportStat label="Mileage" value={a.vehicle.mileage} color="#fff" />
           </div>
           <SectionLabel>Detected Issues</SectionLabel>
-          {a.issues.slice(0, 4).map((issue) => (
-            <IssueLine key={issue.id} issue={issue} />
-          ))}
+          {a.issues.slice(0, 4).map((issue) => <IssueLine key={issue.id} issue={issue} />)}
         </div>
       </section>
       <section style={panelStyle()}>
         <SectionLabel>Recommended Protections</SectionLabel>
-        {PRODUCTS.filter((product) => a.recommendations.includes(product.id)).map((product) => (
-          <div key={product.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '13px 0', borderBottom: `1px solid ${LINE}` }}>
+        {PRODUCTS.filter((p) => a.recommendations.includes(p.id)).map((p) => (
+          <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '13px 0', borderBottom: `1px solid ${LINE}` }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 650 }}>{product.label}</div>
-              <div style={{ fontSize: 11, color: DIM, marginTop: 2 }}>{product.desc}</div>
+              <div style={{ fontSize: 13, fontWeight: 650 }}>{p.label}</div>
+              <div style={{ fontSize: 11, color: DIM, marginTop: 2 }}>{p.desc}</div>
             </div>
             <span style={{ color: MUTED, fontSize: 12 }}>Learn more</span>
           </div>
@@ -530,9 +394,7 @@ function IssueLine({ issue }: { issue: Issue }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 0', borderBottom: `1px solid ${LINE}` }}>
       <div>
         <div style={{ fontSize: 13, fontWeight: 650 }}>{issue.label}</div>
-        <div style={{ fontSize: 11, color: DIM, marginTop: 2 }}>
-          Est. ${issue.repairLow.toLocaleString()}-${issue.repairHigh.toLocaleString()}
-        </div>
+        <div style={{ fontSize: 11, color: DIM, marginTop: 2 }}>Est. ${issue.repairLow.toLocaleString()}–${issue.repairHigh.toLocaleString()}</div>
       </div>
       <span style={{ fontSize: 11, fontWeight: 650, color: SEV[issue.severity].color }}>{SEV[issue.severity].label}</span>
     </div>
@@ -553,7 +415,8 @@ export default function Page() {
   const [vals, setVals] = useState({ retail: '43250', trade: '26800', wholesale: '24100' })
 
   const a = appraisals.find((item) => item.id === selectedId)!
-  const updateAppraisal = (id: string, changes: Partial<Appraisal>) => setAppraisals((current) => current.map((item) => (item.id === id ? { ...item, ...changes } : item)))
+  const updateAppraisal = (id: string, changes: Partial<Appraisal>) =>
+    setAppraisals((current) => current.map((item) => (item.id === id ? { ...item, ...changes } : item)))
 
   const checklist = {
     customerInfo: Boolean(a.customer.name && a.customer.phone),
@@ -577,12 +440,11 @@ export default function Page() {
     reader.readAsDataURL(file)
   }
 
+  // Vehicle Info tab removed. Notes moved to sidebar.
   const tabs = [
     ['photos', 'Photos'],
     ['values', 'Values'],
     ['damage', 'Damage'],
-    ['vehicle', 'Vehicle Info'],
-    ['notes', 'Notes'],
     ['report', 'Customer Report'],
   ] as const
 
@@ -598,20 +460,12 @@ export default function Page() {
     <div style={shell}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} input,button,textarea{font:inherit}`}</style>
       {showSMS && (
-        <SMSModal
-          a={a}
-          onClose={() => setShowSMS(false)}
-          onSend={() => {
-            updateAppraisal(a.id, { status: 'sent' })
-            setShowSMS(false)
-          }}
-        />
+        <SMSModal a={a} onClose={() => setShowSMS(false)} onSend={() => { updateAppraisal(a.id, { status: 'sent' }); setShowSMS(false) }} />
       )}
 
+      {/* Sidebar nav */}
       <aside style={{ width: 190, background: INK, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-        <div style={{ padding: '26px 22px 22px' }}>
-          <Logo size={18} light />
-        </div>
+        <div style={{ padding: '26px 22px 22px' }}><Logo size={18} light /></div>
         <nav style={{ padding: '4px 10px', flex: 1 }}>
           {['Dashboard', 'Appraisals', 'Deals', 'Inventory', 'Customers', 'Reports', 'Products', 'Settings'].map((label) => {
             const active = activeNav === label
@@ -625,6 +479,7 @@ export default function Page() {
         <div style={{ padding: '16px 22px', borderTop: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.24)', fontSize: 10 }}>AutoLens v1.0</div>
       </aside>
 
+      {/* Queue */}
       <aside style={{ width: 252, background: CARD, borderRight: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', flexShrink: 0, boxShadow: '2px 0 12px rgba(0,0,0,0.04)' }}>
         <div style={{ padding: '22px 20px 14px', borderBottom: `1px solid ${LINE}` }}>
           <div style={{ fontSize: 15, fontWeight: 750 }}>Appraisals</div>
@@ -632,19 +487,13 @@ export default function Page() {
         </div>
         <div style={{ overflowY: 'auto', flex: 1 }}>
           {appraisals.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                setSelectedId(item.id)
-                setVals({ retail: String(item.values.retail), trade: String(item.values.trade), wholesale: String(item.values.wholesale) })
-                setPhotosOk(false)
-                setValuesOk(false)
-                setDamageOk(false)
-                setActiveTab('photos')
-                setUploads({ book: null, mmr: null, retail: null })
-              }}
-              style={queueItemStyle(item.id === selectedId)}
-            >
+            <button key={item.id} onClick={() => {
+              setSelectedId(item.id)
+              setVals({ retail: String(item.values.retail), trade: String(item.values.trade), wholesale: String(item.values.wholesale) })
+              setPhotosOk(false); setValuesOk(false); setDamageOk(false)
+              setActiveTab('photos')
+              setUploads({ book: null, mmr: null, retail: null })
+            }} style={queueItemStyle(item.id === selectedId)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 3 }}>
                 <div style={{ fontSize: 13, fontWeight: item.id === selectedId ? 650 : 430, color: item.id === selectedId ? INK : MUTED }}>{item.customer.name}</div>
                 <span style={{ fontSize: 9, color: STAT[item.status].color, fontWeight: 650 }}>{STAT[item.status].label}</span>
@@ -657,6 +506,7 @@ export default function Page() {
         </div>
       </aside>
 
+      {/* Main */}
       <section style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{ padding: '18px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, background: CARD, borderBottom: `1px solid ${LINE}` }}>
           <div>
@@ -670,6 +520,7 @@ export default function Page() {
 
         <VehicleHero a={a} />
 
+        {/* Workflow strip */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '13px 32px', background: CARD, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
           {workflow.map((step, index) => (
             <div key={step.label} style={{ display: 'flex', alignItems: 'center', flex: index < workflow.length - 1 ? 1 : undefined }}>
@@ -682,43 +533,46 @@ export default function Page() {
           ))}
         </div>
 
+        {/* Tabs */}
         <nav style={{ display: 'flex', padding: '0 32px', background: CARD, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
           {tabs.map(([key, label]) => (
-            <button key={key} onClick={() => setActiveTab(key)} style={tabStyle(activeTab === key)}>
-              {label}
-            </button>
+            <button key={key} onClick={() => setActiveTab(key)} style={tabStyle(activeTab === key)}>{label}</button>
           ))}
         </nav>
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
           <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 48px', background: PAGE }}>
-            {activeTab === 'photos' && (
-              <PhotosTab photosOk={photosOk} onReview={() => setPhotosOk(true)} />
-            )}
-
+            {activeTab === 'photos' && <PhotosTab photosOk={photosOk} onReview={() => setPhotosOk(true)} />}
             {activeTab === 'values' && (
               <ValuesTab
-                vals={vals}
-                setVals={setVals}
-                uploads={uploads}
+                vals={vals} setVals={setVals} uploads={uploads}
                 onSave={() => updateAppraisal(selectedId, { values: { retail: +vals.retail, trade: +vals.trade, wholesale: +vals.wholesale } })}
                 onFile={handleUpload}
                 onEdit={(cat, key, value) => setUploads((current) => ({ ...current, [cat]: { ...current[cat]!, data: { ...current[cat]!.data, [key]: value } } }))}
-                valuesOk={valuesOk}
-                onReview={() => setValuesOk(true)}
+                valuesOk={valuesOk} onReview={() => setValuesOk(true)}
               />
             )}
-
             {activeTab === 'damage' && <DamageTab a={a} damageOk={damageOk} onReview={() => setDamageOk(true)} />}
-            {activeTab === 'vehicle' && <VehicleTab a={a} />}
-            {activeTab === 'notes' && <NotesTab notes={notes} setNotes={setNotes} onSave={() => updateAppraisal(a.id, { notes })} />}
             {activeTab === 'report' && <ReportPreview a={a} />}
           </main>
 
+          {/* Right sidebar — checklist + products + notes */}
           <aside style={{ width: 230, borderLeft: `1px solid ${LINE}`, padding: '24px 20px', overflowY: 'auto', flexShrink: 0, background: PAGE }}>
             <InspectionStatus checklist={checklist} allDone={allDone} doneCount={doneCount} />
             <div style={{ height: 20 }} />
             <ProductsPanel a={a} update={(recommendations) => updateAppraisal(a.id, { recommendations })} />
+            <div style={{ height: 20 }} />
+            {/* Notes */}
+            <section style={panelStyle()}>
+              <div style={{ fontSize: 12, fontWeight: 750, marginBottom: 12 }}>Notes</div>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Internal notes..."
+                style={{ width: '100%', minHeight: 90, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, fontSize: 12, color: INK, resize: 'vertical', outline: 'none', background: PAGE, lineHeight: 1.6 }}
+              />
+              <button onClick={() => updateAppraisal(a.id, { notes })} style={{ ...buttonStyle(false), marginTop: 8, width: '100%' }}>Save</button>
+            </section>
           </aside>
         </div>
       </section>
@@ -744,16 +598,7 @@ function PhotosTab({ photosOk, onReview }: { photosOk: boolean; onReview: () => 
   )
 }
 
-function ValuesTab({
-  vals,
-  setVals,
-  uploads,
-  onSave,
-  onFile,
-  onEdit,
-  valuesOk,
-  onReview,
-}: {
+function ValuesTab({ vals, setVals, uploads, onSave, onFile, onEdit, valuesOk, onReview }: {
   vals: { retail: string; trade: string; wholesale: string }
   setVals: React.Dispatch<React.SetStateAction<{ retail: string; trade: string; wholesale: string }>>
   uploads: Record<UploadCat, ValUpload | null>
@@ -764,43 +609,28 @@ function ValuesTab({
   onReview: () => void
 }) {
   const parsed = uploads.book?.status === 'parsed' || uploads.mmr?.status === 'parsed' || uploads.retail?.status === 'parsed'
-
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', gap: 12, marginBottom: 22 }}>
-        {([
-          ['Retail Value', 'retail'],
-          ['Trade-In Value', 'trade'],
-          ['Wholesale Value', 'wholesale'],
-        ] as const).map(([label, key]) => (
+        {([['Retail Value', 'retail'], ['Trade-In Value', 'trade'], ['Wholesale Value', 'wholesale']] as const).map(([label, key]) => (
           <div key={key} style={panelStyle()}>
             <SectionLabel>{label}</SectionLabel>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, marginTop: 10 }}>
               <span style={{ fontSize: 15, color: MUTED }}>$</span>
-              <input
-                type="number"
-                value={vals[key]}
-                onChange={(event) => setVals((current) => ({ ...current, [key]: event.target.value }))}
-                style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 28, fontWeight: 760, color: INK, outline: 'none', padding: 0, letterSpacing: -0.8 }}
-              />
+              <input type="number" value={vals[key]} onChange={(e) => setVals((c) => ({ ...c, [key]: e.target.value }))}
+                style={{ flex: 1, border: 'none', background: 'transparent', fontSize: 28, fontWeight: 760, color: INK, outline: 'none', padding: 0, letterSpacing: -0.8 }} />
             </div>
             <div style={{ fontSize: 10, color: DIM, marginTop: 5 }}>Manager override required</div>
           </div>
         ))}
       </div>
       <button onClick={onSave} style={{ ...buttonStyle(false), marginBottom: 28 }}>Save Values</button>
-
       {parsed && (
         <div style={{ background: INK, borderRadius: 16, padding: '20px 24px', marginBottom: 28 }}>
           <div style={{ color: 'rgba(255,255,255,.38)', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 16 }}>AI Valuation Summary</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-            {[
-              ['Book Avg', uploads.book?.status === 'parsed' ? '$42,633' : null],
-              ['MMR Avg', uploads.mmr?.status === 'parsed' ? '$39,350' : null],
-              ['Retail Avg', uploads.retail?.status === 'parsed' ? '$44,600' : null],
-              ['Suggested', uploads.book?.status === 'parsed' ? '$44,200' : null],
-            ].map(([label, value]) => (
-              <div key={label}>
+            {[['Book Avg', uploads.book?.status === 'parsed' ? '$42,633' : null], ['MMR Avg', uploads.mmr?.status === 'parsed' ? '$39,350' : null], ['Retail Avg', uploads.retail?.status === 'parsed' ? '$44,600' : null], ['Suggested', uploads.book?.status === 'parsed' ? '$44,200' : null]].map(([label, value]) => (
+              <div key={String(label)}>
                 <div style={{ color: 'rgba(255,255,255,.35)', fontSize: 9, marginBottom: 6 }}>{label}</div>
                 <div style={{ color: value ? GOLD : 'rgba(255,255,255,.15)', fontSize: 20, fontWeight: 760 }}>{value || '—'}</div>
               </div>
@@ -808,7 +638,6 @@ function ValuesTab({
           </div>
         </div>
       )}
-
       <SectionLabel>Valuation Sources</SectionLabel>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', gap: 12, marginTop: 14, marginBottom: 24 }}>
         {(['book', 'mmr', 'retail'] as UploadCat[]).map((cat) => (
@@ -823,49 +652,11 @@ function ValuesTab({
 function DamageTab({ a, damageOk, onReview }: { a: Appraisal; damageOk: boolean; onReview: () => void }) {
   return (
     <div>
-      {a.issues.length === 0 ? (
-        <div style={{ padding: '52px 0', textAlign: 'center', color: DIM, fontSize: 12 }}>No damage confirmed yet. Issues appear here once photos are analyzed.</div>
-      ) : (
-        <div style={{ marginBottom: 24 }}>
-          {a.issues.map((issue) => <IssueLine key={issue.id} issue={issue} />)}
-        </div>
-      )}
+      {a.issues.length === 0
+        ? <div style={{ padding: '52px 0', textAlign: 'center', color: DIM, fontSize: 12 }}>No damage confirmed yet. Issues appear here once photos are analyzed.</div>
+        : <div style={{ marginBottom: 24 }}>{a.issues.map((issue) => <IssueLine key={issue.id} issue={issue} />)}</div>
+      }
       {damageOk ? <DoneText label="Damage reviewed" /> : <button onClick={onReview} style={buttonStyle(true)}>Mark Damage Reviewed</button>}
-    </div>
-  )
-}
-
-function VehicleTab({ a }: { a: Appraisal }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-      {[
-        ['Year', a.vehicle.year],
-        ['Make', a.vehicle.make],
-        ['Model', a.vehicle.model],
-        ['Trim', a.vehicle.trim],
-        ['VIN', a.vehicle.vin],
-        ['Mileage', `${a.vehicle.mileage} mi`],
-        ['Color', a.vehicle.color],
-      ].map(([label, value]) => (
-        <div key={label} style={{ padding: '18px 32px 18px 0', borderBottom: `1px solid ${LINE}` }}>
-          <SectionLabel>{label}</SectionLabel>
-          <div style={{ fontSize: 15, fontWeight: 650, marginTop: 6 }}>{value || '—'}</div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function NotesTab({ notes, setNotes, onSave }: { notes: string; setNotes: (value: string) => void; onSave: () => void }) {
-  return (
-    <div>
-      <textarea
-        value={notes}
-        onChange={(event) => setNotes(event.target.value)}
-        placeholder="Internal notes, visible only to your team..."
-        style={{ width: '100%', minHeight: 180, border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, fontSize: 13, color: INK, resize: 'vertical', outline: 'none', background: CARD, lineHeight: 1.7, boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}
-      />
-      <button onClick={onSave} style={{ ...buttonStyle(true), marginTop: 10 }}>Save</button>
     </div>
   )
 }
@@ -878,11 +669,8 @@ function ProductsPanel({ a, update }: { a: Appraisal; update: (recommendations: 
       {PRODUCTS.map((product) => {
         const on = a.recommendations.includes(product.id)
         return (
-          <button
-            key={product.id}
-            onClick={() => update(on ? a.recommendations.filter((id) => id !== product.id) : [...a.recommendations, product.id])}
-            style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 13, cursor: 'pointer', border: 0, background: 'transparent', padding: 0, textAlign: 'left', width: '100%' }}
-          >
+          <button key={product.id} onClick={() => update(on ? a.recommendations.filter((id) => id !== product.id) : [...a.recommendations, product.id])}
+            style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 13, cursor: 'pointer', border: 0, background: 'transparent', padding: 0, textAlign: 'left', width: '100%' }}>
             <span style={{ width: 17, height: 17, borderRadius: 4, background: on ? GOLD : SURF, border: `1px solid ${on ? GOLD : LINE}`, display: 'grid', placeItems: 'center', color: '#fff', fontSize: 10, flexShrink: 0, marginTop: 1 }}>
               {on ? '✓' : ''}
             </span>
@@ -910,85 +698,25 @@ function panelStyle(padding: number | string = '18px 20px'): React.CSSProperties
 }
 
 function buttonStyle(primary: boolean, flex?: number): React.CSSProperties {
-  return {
-    flex,
-    padding: '11px 22px',
-    background: primary ? INK : CARD,
-    border: `1px solid ${primary ? INK : LINE}`,
-    borderRadius: 10,
-    fontSize: 12,
-    fontWeight: 650,
-    cursor: 'pointer',
-    color: primary ? '#fff' : MUTED,
-  }
+  return { flex, padding: '11px 22px', background: primary ? INK : CARD, border: `1px solid ${primary ? INK : LINE}`, borderRadius: 10, fontSize: 12, fontWeight: 650, cursor: 'pointer', color: primary ? '#fff' : MUTED }
 }
 
 function navItemStyle(active: boolean): React.CSSProperties {
-  return {
-    padding: '9px 12px',
-    borderRadius: 8,
-    marginBottom: 1,
-    cursor: 'pointer',
-    fontSize: 13,
-    fontWeight: active ? 560 : 430,
-    color: active ? '#fff' : 'rgba(255,255,255,0.38)',
-    background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
-    border: 0,
-  }
+  return { padding: '9px 12px', borderRadius: 8, marginBottom: 1, cursor: 'pointer', fontSize: 13, fontWeight: active ? 560 : 430, color: active ? '#fff' : 'rgba(255,255,255,0.38)', background: active ? 'rgba(255,255,255,0.08)' : 'transparent', border: 0 }
 }
 
 function queueItemStyle(selected: boolean): React.CSSProperties {
-  return {
-    width: '100%',
-    display: 'block',
-    padding: '15px 20px',
-    cursor: 'pointer',
-    background: selected ? '#FAFAF8' : 'transparent',
-    border: 0,
-    borderLeft: `2px solid ${selected ? GOLD : 'transparent'}`,
-    borderBottom: `1px solid ${LINE}`,
-    textAlign: 'left',
-  }
+  return { width: '100%', display: 'block', padding: '15px 20px', cursor: 'pointer', background: selected ? '#FAFAF8' : 'transparent', border: 0, borderLeft: `2px solid ${selected ? GOLD : 'transparent'}`, borderBottom: `1px solid ${LINE}`, textAlign: 'left' }
 }
 
 function tabStyle(active: boolean): React.CSSProperties {
-  return {
-    padding: '13px 14px 12px',
-    border: 'none',
-    background: 'none',
-    fontSize: 12,
-    fontWeight: active ? 650 : 430,
-    cursor: 'pointer',
-    color: active ? INK : DIM,
-    borderBottom: `2px solid ${active ? GOLD : 'transparent'}`,
-    marginBottom: -1,
-    whiteSpace: 'nowrap',
-  }
+  return { padding: '13px 14px 12px', border: 'none', background: 'none', fontSize: 12, fontWeight: active ? 650 : 430, cursor: 'pointer', color: active ? INK : DIM, borderBottom: `2px solid ${active ? GOLD : 'transparent'}`, marginBottom: -1, whiteSpace: 'nowrap' }
 }
 
 function plainButton(size: number, color: string): React.CSSProperties {
-  return {
-    border: 0,
-    background: 'transparent',
-    padding: 0,
-    color,
-    fontSize: size,
-    cursor: 'pointer',
-  }
+  return { border: 0, background: 'transparent', padding: 0, color, fontSize: size, cursor: 'pointer' }
 }
 
 function photoTileStyle(): React.CSSProperties {
-  return {
-    background: CARD,
-    borderRadius: 12,
-    aspectRatio: '4 / 3',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    cursor: 'pointer',
-    border: `1.5px dashed ${LINE}`,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-  }
+  return { background: CARD, borderRadius: 12, aspectRatio: '4 / 3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', border: `1.5px dashed ${LINE}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }
 }
