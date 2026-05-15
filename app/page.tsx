@@ -623,7 +623,65 @@ const handlePhotoDelete = useCallback((id: string) => {
   )
 }
 
-function PhotosTab({ photosOk, onReview }: { photosOk: boolean; onReview: () => void }) {
+function PhotosTab({
+  photos, onUpload, onDelete, onZoom, photosOk, onReview,
+}: {
+  photos: Photo[]
+  onUpload: (angle: string, file: File) => void
+  onDelete: (id: string) => void
+  onZoom: (src: string) => void
+  photosOk: boolean
+  onReview: () => void
+}) {
+  const [dragAngle, setDragAngle] = useState<string | null>(null)
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const getPhoto = (angle: string) => photos.find(p => p.angle === angle)
+  const uploadedCount = photos.filter(p => !p.uploading && p.preview).length
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 18 }}>
+        {PHOTO_ANGLES.map(angle => {
+          const photo = getPhoto(angle)
+          const isDragging = dragAngle === angle
+          return (
+            <div key={angle} className="photo-slot"
+              onDragOver={e => { e.preventDefault(); setDragAngle(angle) }}
+              onDragLeave={() => setDragAngle(null)}
+              onDrop={e => { e.preventDefault(); setDragAngle(null); const f = e.dataTransfer.files[0]; if (f) onUpload(angle, f) }}
+              style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 12, overflow: 'hidden', border: `1.5px ${photo?.preview ? 'solid' : 'dashed'} ${isDragging ? GOLD : LINE}`, background: isDragging ? '#FAF8F2' : CARD, cursor: photo?.preview ? 'pointer' : 'default', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'border-color 0.15s' }}
+            >
+              {photo?.uploading ? (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: SURF, gap: 7 }}>
+                  <span style={{ width: 18, height: 18, border: `2px solid ${LINE}`, borderTopColor: GOLD, borderRadius: '50%', display: 'block', animation: 'spin 0.8s linear infinite' }} />
+                  <span style={{ fontSize: 9, color: DIM }}>Uploading…</span>
+                </div>
+              ) : photo?.preview ? (
+                <div style={{ position: 'absolute', inset: 0 }} onClick={() => onZoom(photo.preview)}>
+                  <img src={photo.preview} alt={angle} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.2s' }} />
+                  <button className="photo-delete" onClick={e => { e.stopPropagation(); onDelete(photo.id) }}
+                    style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
+                  >×</button>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.45))', padding: '10px 8px 5px', fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>{angle}</div>
+                </div>
+              ) : (
+                <div onClick={() => fileRefs.current[angle]?.click()} style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+                  <span style={{ width: 30, height: 20, borderRadius: 6, background: '#DDD7CD', display: 'block' }} />
+                  <span style={{ fontSize: 9, color: DIM }}>{angle}</span>
+                </div>
+              )}
+              <input ref={el => { fileRefs.current[angle] = el }} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(angle, f) }} />
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 12, color: DIM, marginBottom: 20 }}>
+        {uploadedCount} of {PHOTO_ANGLES.length} photos uploaded{uploadedCount === 0 && ' — drag and drop or click any slot'}
+      </div>
+      {photosOk ? <DoneText label="Photos reviewed" /> : <button onClick={onReview} style={buttonStyle(true)}>Mark Photos Reviewed</button>}
+    </div>
+  )
+}
   return (
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 22 }}>
