@@ -681,23 +681,6 @@ function PhotosTab({
       {photosOk ? <DoneText label="Photos reviewed" /> : <button onClick={onReview} style={buttonStyle(true)}>Mark Photos Reviewed</button>}
     </div>
   )
-}
-  return (
-    <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 22 }}>
-        {['Front', 'Front Left', 'Front Right', 'Rear', 'Rear Left', 'Rear Right', 'Left Side', 'Right Side', 'Interior', 'Engine', 'Odometer'].map((label) => (
-          <div key={label} style={photoTileStyle()}>
-            <span style={{ width: 32, height: 22, borderRadius: 999, background: '#DDD7CD', display: 'block', marginBottom: 7 }} />
-            <span style={{ fontSize: 9, color: DIM }}>{label}</span>
-          </div>
-        ))}
-        <div style={{ ...photoTileStyle(), border: `1.5px dashed ${GOLD}`, color: GOLD }}>Add Photo</div>
-      </div>
-      <div style={{ fontSize: 12, color: DIM, marginBottom: 20 }}>No live uploads in this prototype. Photos strengthen the customer report.</div>
-      {photosOk ? <DoneText label="Photos reviewed" /> : <button onClick={onReview} style={buttonStyle(true)}>Mark Photos Reviewed</button>}
-    </div>
-  )
-}
 
 function ValuesTab({ vals, setVals, uploads, onSave, onFile, onEdit, valuesOk, onReview }: {
   vals: { retail: string; trade: string; wholesale: string }
