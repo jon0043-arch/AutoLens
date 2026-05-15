@@ -48,6 +48,7 @@ const PHOTO_ANGLES = [
   'Left Side', 'Right Side',
   'Interior', 'Engine', 'Odometer', 'Damage',
 ]
+
 const GOLD = '#B8962A'
 const INK = '#1A1A1C'
 const CHAR = '#252527'
@@ -170,9 +171,7 @@ function Logo({ size = 18, light = false }: { size?: number; light?: boolean }) 
   return (
     <div style={{ display: 'flex', alignItems: 'center', fontWeight: 800, fontSize: size, letterSpacing: -0.5, lineHeight: 1 }}>
       <span style={{ color: light ? '#fff' : INK }}>Aut</span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size * 1.1, height: size * 1.1, borderRadius: '50%', background: GOLD, color: '#fff', margin: '0 1px', fontSize: size * 0.5 }}>
-        AL
-      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size * 1.1, height: size * 1.1, borderRadius: '50%', background: GOLD, color: '#fff', margin: '0 1px', fontSize: size * 0.5 }}>AL</span>
       <span style={{ color: light ? '#fff' : INK }}>Lens</span>
     </div>
   )
@@ -185,11 +184,7 @@ function VehicleHero({ a }: { a: Appraisal }) {
       <div style={{ display: 'grid', gridTemplateColumns: '170px minmax(360px, 1fr) 170px', alignItems: 'center', gap: 20, padding: '28px 34px 20px', minHeight: 300 }}>
         <HeroMetric label="Estimated Value" value={fmt(a.estimatedValue)} />
         <div style={{ textAlign: 'center', minWidth: 0 }}>
-          <img
-            src="/vehicle-hero.png"
-            alt={`${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}`}
-            style={{ width: '100%', maxWidth: 620, height: 220, objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'saturate(.96) contrast(.98)' }}
-          />
+          <img src="/vehicle-hero.png" alt={`${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}`} style={{ width: '100%', maxWidth: 620, height: 220, objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'saturate(.96) contrast(.98)' }} />
           <div style={{ color: 'rgba(255,255,255,.42)', fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' }}>
             {a.vehicle.year} · {a.vehicle.make} {a.vehicle.model} · {a.vehicle.mileage} mi
           </div>
@@ -354,6 +349,22 @@ function SMSModal({ a, onClose, onSend }: { a: Appraisal; onClose: () => void; o
   )
 }
 
+function ZoomModal({ src, onClose }: { src: string; onClose: () => void }) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(10,10,10,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(6px)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
+        <img src={src} alt="" style={{ maxWidth: '88vw', maxHeight: '86vh', objectFit: 'contain', borderRadius: 14, display: 'block', boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }} />
+        <button onClick={onClose} style={{ position: 'absolute', top: -14, right: -14, width: 30, height: 30, borderRadius: '50%', background: CARD, border: 'none', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.25)', color: INK }}>×</button>
+      </div>
+    </div>
+  )
+}
+
 function ReportPreview({ a }: { a: Appraisal }) {
   return (
     <div style={{ maxWidth: 920, display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 360px', gap: 28, alignItems: 'start' }}>
@@ -424,8 +435,8 @@ export default function Page() {
   const [valuesOk, setValuesOk] = useState(false)
   const [damageOk, setDamageOk] = useState(false)
   const [notes, setNotes] = useState('')
-  const [photos, setPhotos]     = useState<Photo[]>([])
-  const [zoomSrc, setZoomSrc]   = useState<string | null>(null)
+  const [photos, setPhotos] = useState<Photo[]>([])
+  const [zoomSrc, setZoomSrc] = useState<string | null>(null)
   const [uploads, setUploads] = useState<Record<UploadCat, ValUpload | null>>({ book: null, mmr: null, retail: null })
   const [vals, setVals] = useState({ retail: '43250', trade: '26800', wholesale: '24100' })
 
@@ -445,24 +456,22 @@ export default function Page() {
   const allDone = doneCount === 6
 
   const handlePhotoUpload = useCallback((angle: string, file: File) => {
-  const id = `${angle}-${Date.now()}`
-  setPhotos(prev => [
-    ...prev.filter(p => p.angle !== angle),
-    { id, angle, preview: '', uploading: true },
-  ])
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const preview = e.target?.result as string
-    setTimeout(() => {
-      setPhotos(prev => prev.map(p => p.id === id ? { ...p, preview, uploading: false } : p))
-    }, 900)
-  }
-  reader.readAsDataURL(file)
-}, [])
+    const id = `${angle}-${Date.now()}`
+    setPhotos(prev => [...prev.filter(p => p.angle !== angle), { id, angle, preview: '', uploading: true }])
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const preview = e.target?.result as string
+      setTimeout(() => {
+        setPhotos(prev => prev.map(p => p.id === id ? { ...p, preview, uploading: false } : p))
+      }, 900)
+    }
+    reader.readAsDataURL(file)
+  }, [])
 
-const handlePhotoDelete = useCallback((id: string) => {
-  setPhotos(prev => prev.filter(p => p.id !== id))
-}, [])
+  const handlePhotoDelete = useCallback((id: string) => {
+    setPhotos(prev => prev.filter(p => p.id !== id))
+  }, [])
+
   const handleUpload = (cat: UploadCat, file: File) => {
     const reader = new FileReader()
     reader.onload = (event) => {
@@ -474,7 +483,6 @@ const handlePhotoDelete = useCallback((id: string) => {
     reader.readAsDataURL(file)
   }
 
-  // Vehicle Info tab removed. Notes moved to sidebar.
   const tabs = [
     ['photos', 'Photos'],
     ['values', 'Values'],
@@ -492,28 +500,22 @@ const handlePhotoDelete = useCallback((id: string) => {
 
   return (
     <div style={shell}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} input,button,textarea{font:inherit}`}</style>
-      {showSMS && (
-        <SMSModal a={a} onClose={() => setShowSMS(false)} onSend={() => { updateAppraisal(a.id, { status: 'sent' }); setShowSMS(false) }} />
-      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} input,button,textarea{font:inherit} .photo-slot:hover .photo-delete{opacity:1!important} .photo-slot:hover img{transform:scale(1.03)}`}</style>
 
-      {/* Sidebar nav */}
+      {zoomSrc && <ZoomModal src={zoomSrc} onClose={() => setZoomSrc(null)} />}
+      {showSMS && <SMSModal a={a} onClose={() => setShowSMS(false)} onSend={() => { updateAppraisal(a.id, { status: 'sent' }); setShowSMS(false) }} />}
+
       <aside style={{ width: 190, background: INK, display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
         <div style={{ padding: '26px 22px 22px' }}><Logo size={18} light /></div>
         <nav style={{ padding: '4px 10px', flex: 1 }}>
           {['Dashboard', 'Appraisals', 'Deals', 'Inventory', 'Customers', 'Reports', 'Products', 'Settings'].map((label) => {
             const active = activeNav === label
-            return (
-              <button key={label} onClick={() => setActiveNav(label)} style={{ ...navItemStyle(active), width: '100%', textAlign: 'left' }}>
-                {label}
-              </button>
-            )
+            return <button key={label} onClick={() => setActiveNav(label)} style={{ ...navItemStyle(active), width: '100%', textAlign: 'left' }}>{label}</button>
           })}
         </nav>
         <div style={{ padding: '16px 22px', borderTop: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.24)', fontSize: 10 }}>AutoLens v1.0</div>
       </aside>
 
-      {/* Queue */}
       <aside style={{ width: 252, background: CARD, borderRight: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', flexShrink: 0, boxShadow: '2px 0 12px rgba(0,0,0,0.04)' }}>
         <div style={{ padding: '22px 20px 14px', borderBottom: `1px solid ${LINE}` }}>
           <div style={{ fontSize: 15, fontWeight: 750 }}>Appraisals</div>
@@ -527,6 +529,7 @@ const handlePhotoDelete = useCallback((id: string) => {
               setPhotosOk(false); setValuesOk(false); setDamageOk(false)
               setActiveTab('photos')
               setUploads({ book: null, mmr: null, retail: null })
+              setPhotos([])
             }} style={queueItemStyle(item.id === selectedId)}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 3 }}>
                 <div style={{ fontSize: 13, fontWeight: item.id === selectedId ? 650 : 430, color: item.id === selectedId ? INK : MUTED }}>{item.customer.name}</div>
@@ -540,7 +543,6 @@ const handlePhotoDelete = useCallback((id: string) => {
         </div>
       </aside>
 
-      {/* Main */}
       <section style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{ padding: '18px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, background: CARD, borderBottom: `1px solid ${LINE}` }}>
           <div>
@@ -554,7 +556,6 @@ const handlePhotoDelete = useCallback((id: string) => {
 
         <VehicleHero a={a} />
 
-        {/* Workflow strip */}
         <div style={{ display: 'flex', alignItems: 'center', padding: '13px 32px', background: CARD, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
           {workflow.map((step, index) => (
             <div key={step.label} style={{ display: 'flex', alignItems: 'center', flex: index < workflow.length - 1 ? 1 : undefined }}>
@@ -567,7 +568,6 @@ const handlePhotoDelete = useCallback((id: string) => {
           ))}
         </div>
 
-        {/* Tabs */}
         <nav style={{ display: 'flex', padding: '0 32px', background: CARD, borderBottom: `1px solid ${LINE}`, flexShrink: 0 }}>
           {tabs.map(([key, label]) => (
             <button key={key} onClick={() => setActiveTab(key)} style={tabStyle(activeTab === key)}>{label}</button>
@@ -576,7 +576,16 @@ const handlePhotoDelete = useCallback((id: string) => {
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
           <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 48px', background: PAGE }}>
-            {activeTab === 'photos' && <PhotosTab photosOk={photosOk} onReview={() => setPhotosOk(true)} />}
+            {activeTab === 'photos' && (
+              <PhotosTab
+                photos={photos}
+                onUpload={handlePhotoUpload}
+                onDelete={handlePhotoDelete}
+                onZoom={setZoomSrc}
+                photosOk={photosOk}
+                onReview={() => setPhotosOk(true)}
+              />
+            )}
             {activeTab === 'values' && (
               <ValuesTab
                 vals={vals} setVals={setVals} uploads={uploads}
@@ -590,21 +599,15 @@ const handlePhotoDelete = useCallback((id: string) => {
             {activeTab === 'report' && <ReportPreview a={a} />}
           </main>
 
-          {/* Right sidebar — checklist + products + notes */}
           <aside style={{ width: 230, borderLeft: `1px solid ${LINE}`, padding: '24px 20px', overflowY: 'auto', flexShrink: 0, background: PAGE }}>
             <InspectionStatus checklist={checklist} allDone={allDone} doneCount={doneCount} />
             <div style={{ height: 20 }} />
             <ProductsPanel a={a} update={(recommendations) => updateAppraisal(a.id, { recommendations })} />
             <div style={{ height: 20 }} />
-            {/* Notes */}
             <section style={panelStyle()}>
               <div style={{ fontSize: 12, fontWeight: 750, marginBottom: 12 }}>Notes</div>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Internal notes..."
-                style={{ width: '100%', minHeight: 90, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, fontSize: 12, color: INK, resize: 'vertical', outline: 'none', background: PAGE, lineHeight: 1.6 }}
-              />
+              <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal notes..."
+                style={{ width: '100%', minHeight: 90, border: `1px solid ${LINE}`, borderRadius: 10, padding: 10, fontSize: 12, color: INK, resize: 'vertical', outline: 'none', background: PAGE, lineHeight: 1.6 }} />
               <button onClick={() => updateAppraisal(a.id, { notes })} style={{ ...buttonStyle(false), marginTop: 8, width: '100%' }}>Save</button>
             </section>
           </aside>
@@ -614,19 +617,58 @@ const handlePhotoDelete = useCallback((id: string) => {
   )
 }
 
-function PhotosTab({ photosOk, onReview }: { photosOk: boolean; onReview: () => void }) {
+function PhotosTab({ photos, onUpload, onDelete, onZoom, photosOk, onReview }: {
+  photos: Photo[]
+  onUpload: (angle: string, file: File) => void
+  onDelete: (id: string) => void
+  onZoom: (src: string) => void
+  photosOk: boolean
+  onReview: () => void
+}) {
+  const [dragAngle, setDragAngle] = useState<string | null>(null)
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const getPhoto = (angle: string) => photos.find(p => p.angle === angle)
+  const uploadedCount = photos.filter(p => !p.uploading && p.preview).length
+
   return (
     <div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 22 }}>
-        {['Front', 'Front Left', 'Front Right', 'Rear', 'Rear Left', 'Rear Right', 'Left Side', 'Right Side', 'Interior', 'Engine', 'Odometer'].map((label) => (
-          <div key={label} style={photoTileStyle()}>
-            <span style={{ width: 32, height: 22, borderRadius: 999, background: '#DDD7CD', display: 'block', marginBottom: 7 }} />
-            <span style={{ fontSize: 9, color: DIM }}>{label}</span>
-          </div>
-        ))}
-        <div style={{ ...photoTileStyle(), border: `1.5px dashed ${GOLD}`, color: GOLD }}>Add Photo</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(120px, 1fr))', gap: 10, marginBottom: 18 }}>
+        {PHOTO_ANGLES.map(angle => {
+          const photo = getPhoto(angle)
+          const isDragging = dragAngle === angle
+          return (
+            <div key={angle} className="photo-slot"
+              onDragOver={e => { e.preventDefault(); setDragAngle(angle) }}
+              onDragLeave={() => setDragAngle(null)}
+              onDrop={e => { e.preventDefault(); setDragAngle(null); const f = e.dataTransfer.files[0]; if (f) onUpload(angle, f) }}
+              style={{ position: 'relative', aspectRatio: '4 / 3', borderRadius: 12, overflow: 'hidden', border: `1.5px ${photo?.preview ? 'solid' : 'dashed'} ${isDragging ? GOLD : LINE}`, background: isDragging ? '#FAF8F2' : CARD, cursor: photo?.preview ? 'pointer' : 'default', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', transition: 'border-color 0.15s' }}
+            >
+              {photo?.uploading ? (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: SURF, gap: 7 }}>
+                  <span style={{ width: 18, height: 18, border: `2px solid ${LINE}`, borderTopColor: GOLD, borderRadius: '50%', display: 'block', animation: 'spin 0.8s linear infinite' }} />
+                  <span style={{ fontSize: 9, color: DIM }}>Uploading…</span>
+                </div>
+              ) : photo?.preview ? (
+                <div style={{ position: 'absolute', inset: 0 }} onClick={() => onZoom(photo.preview)}>
+                  <img src={photo.preview} alt={angle} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.2s' }} />
+                  <button className="photo-delete" onClick={e => { e.stopPropagation(); onDelete(photo.id) }}
+                    style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', background: 'rgba(0,0,0,0.65)', border: 'none', color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}>×</button>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.45))', padding: '10px 8px 5px', fontSize: 9, color: '#fff', letterSpacing: 0.3 }}>{angle}</div>
+                </div>
+              ) : (
+                <div onClick={() => fileRefs.current[angle]?.click()} style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}>
+                  <span style={{ width: 30, height: 20, borderRadius: 6, background: '#DDD7CD', display: 'block' }} />
+                  <span style={{ fontSize: 9, color: DIM }}>{angle}</span>
+                </div>
+              )}
+              <input ref={el => { fileRefs.current[angle] = el }} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) onUpload(angle, f) }} />
+            </div>
+          )
+        })}
       </div>
-      <div style={{ fontSize: 12, color: DIM, marginBottom: 20 }}>No live uploads in this prototype. Photos strengthen the customer report.</div>
+      <div style={{ fontSize: 12, color: DIM, marginBottom: 20 }}>
+        {uploadedCount} of {PHOTO_ANGLES.length} photos uploaded{uploadedCount === 0 && ' — drag and drop or click any slot'}
+      </div>
       {photosOk ? <DoneText label="Photos reviewed" /> : <button onClick={onReview} style={buttonStyle(true)}>Mark Photos Reviewed</button>}
     </div>
   )
@@ -749,8 +791,4 @@ function tabStyle(active: boolean): React.CSSProperties {
 
 function plainButton(size: number, color: string): React.CSSProperties {
   return { border: 0, background: 'transparent', padding: 0, color, fontSize: size, cursor: 'pointer' }
-}
-
-function photoTileStyle(): React.CSSProperties {
-  return { background: CARD, borderRadius: 12, aspectRatio: '4 / 3', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5, cursor: 'pointer', border: `1.5px dashed ${LINE}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }
 }
