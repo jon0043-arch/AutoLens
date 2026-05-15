@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 
 type Severity = 'low' | 'moderate' | 'high'
 type Status = 'pending' | 'review' | 'approved' | 'sent'
