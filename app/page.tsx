@@ -35,6 +35,19 @@ interface Appraisal {
   notes: string
 }
 
+interface Photo {
+  id: string
+  angle: string
+  preview: string
+  uploading: boolean
+}
+
+const PHOTO_ANGLES = [
+  'Front', 'Front Left', 'Front Right',
+  'Rear', 'Rear Left', 'Rear Right',
+  'Left Side', 'Right Side',
+  'Interior', 'Engine', 'Odometer', 'Damage',
+]
 const GOLD = '#B8962A'
 const INK = '#1A1A1C'
 const CHAR = '#252527'
