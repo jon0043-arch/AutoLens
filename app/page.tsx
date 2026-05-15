@@ -576,7 +576,16 @@ const handlePhotoDelete = useCallback((id: string) => {
 
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
           <main style={{ flex: 1, overflowY: 'auto', padding: '28px 32px 48px', background: PAGE }}>
-            {activeTab === 'photos' && <PhotosTab photosOk={photosOk} onReview={() => setPhotosOk(true)} />}
+            {activeTab === 'photos' && (
+  <PhotosTab
+    photos={photos}
+    onUpload={handlePhotoUpload}
+    onDelete={handlePhotoDelete}
+    onZoom={setZoomSrc}
+    photosOk={photosOk}
+    onReview={() => setPhotosOk(true)}
+  />
+)}
             {activeTab === 'values' && (
               <ValuesTab
                 vals={vals} setVals={setVals} uploads={uploads}
