@@ -185,7 +185,7 @@ function VehicleHero({ a }: { a: Appraisal }) {
         <HeroMetric label="Estimated Value" value={fmt(a.estimatedValue)} />
         <div style={{ textAlign: 'center', minWidth: 0 }}>
           <img src="/vehicle-hero.png" alt={`${a.vehicle.year} ${a.vehicle.make} ${a.vehicle.model}`} style={{ width: '100%', maxWidth: 620, height: 220, objectFit: 'contain', display: 'block', margin: '0 auto', filter: 'saturate(.96) contrast(.98)' }} />
-          <div style={{ color: 'rgba(255,255,255,.42)', fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' }}>
+          <div style={{ color: 'rgba(255,255,255,.8)', fontSize: 10, letterSpacing: 2.6, textTransform: 'uppercase' }}>
             {a.vehicle.year} · {a.vehicle.make} {a.vehicle.model} · {a.vehicle.mileage} mi
           </div>
         </div>
@@ -202,9 +202,9 @@ function VehicleHero({ a }: { a: Appraisal }) {
 function HeroMetric({ label, value, color = '#fff', small = false }: { label: string; value: string; color?: string; small?: boolean }) {
   return (
     <div>
-      <div style={{ color: 'rgba(255,255,255,.42)', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
+      <div style={{ color: 'rgba(255,255,255,.8)', fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8 }}>{label}</div>
       <div style={{ color, fontSize: small ? 18 : 32, fontWeight: 750, letterSpacing: -0.8, lineHeight: 1 }}>{value}</div>
-      {!small && <div style={{ color: 'rgba(255,255,255,.48)', fontSize: 12, marginTop: 8 }}>Manager reviewed</div>}
+      {!small && <div style={{ color: 'rgba(255,255,255,.7)', fontSize: 12, marginTop: 8 }}>Manager reviewed</div>}
     </div>
   )
 }
