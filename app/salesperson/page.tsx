@@ -4,94 +4,76 @@ import { useRef, useState, useCallback } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface VehicleData {
-  vin: string
-  year: string
-  make: string
-  model: string
-  trim: string
+  vin: string; year: string; make: string; model: string; trim: string
 }
-
 interface FormData {
-  customerName: string
-  phone: string
-  mileage: string
-  keys: string
-  notes: string
+  customerName: string; phone: string; notes: string
 }
-
-interface Photo {
-  angle: string
-  preview: string
+interface PhotoBucket {
+  category: string
+  photos: { id: string; preview: string }[]
 }
-
-type Step = 'vehicle' | 'photos' | 'review' | 'submit'
+type Step = 'vehicle' | 'photos' | 'submit'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const GOLD   = '#B8962A'
-const INK    = '#1A1A1C'
-const PAGE   = '#F3F2EF'
-const CARD   = '#FFFFFF'
-const SURF   = '#ECEAE6'
-const MUTED  = '#6B6A67'
-const DIM    = '#9E9D9A'
-const LINE   = '#E6E4E0'
+const GOLD  = '#B8962A'
+const INK   = '#1A1A1C'
+const PAGE  = '#F3F2EF'
+const CARD  = '#FFFFFF'
+const SURF  = '#ECEAE6'
+const MUTED = '#6B6A67'
+const DIM   = '#9E9D9A'
+const LINE  = '#E6E4E0'
 
-const REQUIRED_ANGLES = [
-  'Front', 'Rear', 'Driver Side', 'Passenger Side',
-  'Wheel 1', 'Wheel 2', 'Wheel 3', 'Wheel 4',
-  'Windshield', 'Interior', 'Odometer', 'Damage',
+const STEPS: Step[] = ['vehicle', 'photos', 'submit']
+const STEP_LABELS   = ['Vehicle', 'Photos', 'Submit']
+
+// Photo buckets — AI will later auto-categorize and link to recommendations
+const BUCKETS = [
+  { id: 'damage',     label: 'Damage',     icon: '🔍', hint: 'Any dents, scratches, or damage'  },
+  { id: 'wheels',     label: 'Wheels',     icon: '⭕', hint: 'All four wheels'                  },
+  { id: 'tires',      label: 'Tire Tread', icon: '🔄', hint: 'Tread depth close-ups'            },
+  { id: 'windshield', label: 'Windshield', icon: '🪟', hint: 'Chips, cracks, or damage'         },
+  { id: 'interior',   label: 'Interior',   icon: '🪑', hint: 'Seats, dashboard, wear'           },
+  { id: 'keys',       label: 'Keys',       icon: '🔑', hint: 'Show all keys'                    },
+  { id: 'odometer',   label: 'Odometer',   icon: '📊', hint: 'Current mileage reading'          },
 ]
 
-const REQUIRED_FOR_SUBMIT = ['Damage']
-
-const STEPS: Step[] = ['vehicle', 'photos', 'review', 'submit']
-const STEP_LABELS = ['Vehicle', 'Photos', 'Review', 'Submit']
-
 // ─── NHTSA VIN decode ─────────────────────────────────────────────────────────
-// TODO: replace Claude VIN photo decode with POST /api/decode-vin-photo { base64 }
 async function decodeVIN(vin: string): Promise<Partial<VehicleData>> {
   try {
-    const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`)
+    const res  = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`)
     const data = await res.json()
-    const r = data.Results?.[0]
+    const r    = data.Results?.[0]
     if (!r) return {}
-    return {
-      year:  r.ModelYear || '',
-      make:  r.Make      || '',
-      model: r.Model     || '',
-      trim:  r.Trim      || '',
-    }
-  } catch {
-    return {}
-  }
+    return { year: r.ModelYear || '', make: r.Make || '', model: r.Model || '', trim: r.Trim || '' }
+  } catch { return {} }
 }
 
 export default function SalespersonPage() {
-  const [step, setStep]               = useState<Step>('vehicle')
-  const [vehicle, setVehicle]         = useState<VehicleData>({ vin: '', year: '', make: '', model: '', trim: '' })
-  const [form, setForm]               = useState<FormData>({ customerName: '', phone: '', mileage: '', keys: '2', notes: '' })
-  const [photos, setPhotos]           = useState<Photo[]>([])
-  const [vinLoading, setVinLoading]   = useState(false)
-  const [vinError, setVinError]       = useState('')
-  const [submitting, setSubmitting]   = useState(false)
-  const [submitted, setSubmitted]     = useState(false)
+  const [step, setStep]           = useState<Step>('vehicle')
+  const [vehicle, setVehicle]     = useState<VehicleData>({ vin: '', year: '', make: '', model: '', trim: '' })
+  const [form, setForm]           = useState<FormData>({ customerName: '', phone: '', notes: '' })
+  const [buckets, setBuckets]     = useState<PhotoBucket[]>(BUCKETS.map(b => ({ category: b.id, photos: [] })))
+  const [vinLoading, setVinLoading] = useState(false)
+  const [vinError, setVinError]   = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
 
-  // VIN photo decode state
-  const [vinPhotoMode, setVinPhotoMode] = useState(false)
-  const vinPhotoRef  = useRef<HTMLInputElement>(null)
-  const photoRefs    = useRef<Record<string, HTMLInputElement | null>>({})
-
-  const stepIndex = STEPS.indexOf(step)
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   const setV = (k: keyof VehicleData, v: string) => setVehicle(p => ({ ...p, [k]: v }))
   const setF = (k: keyof FormData,    v: string) => setForm(p => ({ ...p, [k]: v }))
 
-  // ── VIN decode from text ──────────────────────────────────────────────────
-  const handleVINDecode = async (vin: string) => {
+  const totalPhotos = buckets.reduce((sum, b) => sum + b.photos.length, 0)
+  const stepIndex   = STEPS.indexOf(step)
+
+  // ── VIN decode ───────────────────────────────────────────────────────────
+  const handleVINInput = async (vin: string) => {
+    setV('vin', vin.toUpperCase())
     if (vin.length !== 17) return
-    setVinLoading(true)
-    setVinError('')
-    const result = await decodeVIN(vin)
+    setVinLoading(true); setVinError('')
+    const result = await decodeVIN(vin.toUpperCase())
     if (result.make) {
       setVehicle(p => ({ ...p, ...result }))
     } else {
@@ -100,292 +82,292 @@ export default function SalespersonPage() {
     setVinLoading(false)
   }
 
-  // ── VIN photo decode via Claude Vision ───────────────────────────────────
-  // TODO: wire to POST /api/decode-vin-photo { base64 } → returns { vin }
-  const handleVINPhoto = useCallback((file: File) => {
+  // ── Photo upload per bucket ───────────────────────────────────────────────
+  const handlePhoto = useCallback((bucketId: string, file: File) => {
     const reader = new FileReader()
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string
-      setVinLoading(true)
-      setVinError('')
-      // Placeholder — replace with real Claude Vision call
-      await new Promise(r => setTimeout(r, 1500))
-      // Fake extracted VIN for now
-      const fakeVIN = 'SALWR2RV2LA123456'
-      setV('vin', fakeVIN)
-      const result = await decodeVIN(fakeVIN)
-      if (result.make) setVehicle(p => ({ ...p, ...result }))
-      setVinLoading(false)
-      setVinPhotoMode(false)
-    }
-    reader.readAsDataURL(file)
-  }, [])
-
-  // ── Photo upload ──────────────────────────────────────────────────────────
-  const handlePhoto = useCallback((angle: string, file: File) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = e => {
       const preview = e.target?.result as string
-      setPhotos(prev => [...prev.filter(p => p.angle !== angle), { angle, preview }])
+      const id      = `${bucketId}-${Date.now()}`
+      setBuckets(prev => prev.map(b =>
+        b.category === bucketId
+          ? { ...b, photos: [...b.photos, { id, preview }] }
+          : b
+      ))
     }
     reader.readAsDataURL(file)
   }, [])
 
-  const getPhoto = (angle: string) => photos.find(p => p.angle === angle)
-  const photoCount = photos.length
+  const removePhoto = useCallback((bucketId: string, photoId: string) => {
+    setBuckets(prev => prev.map(b =>
+      b.category === bucketId
+        ? { ...b, photos: b.photos.filter(p => p.id !== photoId) }
+        : b
+    ))
+  }, [])
 
-  // ── Submit to manager ─────────────────────────────────────────────────────
-  // TODO: replace with POST /api/appraisals { vehicle, form, photos }
+  // ── Submit ───────────────────────────────────────────────────────────────
+  // TODO: replace with POST /api/appraisals { vehicle, form, buckets }
   const handleSubmit = async () => {
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 1800))
+    await new Promise(r => setTimeout(r, 1600))
     setSubmitting(false)
     setSubmitted(true)
   }
 
-  const canAdvanceVehicle = vehicle.vin.length === 17 && vehicle.make && form.customerName && form.phone && form.mileage
-  const canAdvancePhotos = REQUIRED_FOR_SUBMIT.every(angle => photos.some(p => p.angle === angle))
+  const canAdvanceVehicle = vehicle.vin.length === 17 && form.customerName && form.phone
+  const canSubmit         = totalPhotos >= 1
 
-  // ── Submitted screen ──────────────────────────────────────────────────────
-  if (submitted) {
-    return (
-      <div style={{ minHeight: '100vh', background: PAGE, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, fontFamily: 'Inter,-apple-system,sans-serif' }}>
-        <div style={{ fontSize: 56, marginBottom: 20 }}>✅</div>
-        <div style={{ fontSize: 24, fontWeight: 800, color: INK, marginBottom: 8, textAlign: 'center' }}>Submitted to Manager</div>
-        <div style={{ fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 1.6, marginBottom: 40 }}>
+  // ── Submitted ────────────────────────────────────────────────────────────
+  if (submitted) return (
+    <Shell>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', textAlign: 'center', padding: 32 }}>
+        <div style={{ fontSize: 52, marginBottom: 20 }}>✅</div>
+        <div style={{ fontSize: 22, fontWeight: 800, color: INK, marginBottom: 8 }}>Submitted to Manager</div>
+        <div style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, marginBottom: 40 }}>
           {form.customerName}'s {vehicle.year} {vehicle.make} {vehicle.model} is in the queue.
         </div>
-        <button onClick={() => { setSubmitted(false); setStep('vehicle'); setVehicle({ vin:'',year:'',make:'',model:'',trim:'' }); setForm({ customerName:'',phone:'',mileage:'',keys:'2',notes:'' }); setPhotos([]) }}
-          style={btnStyle(true)}>
+        <button onClick={() => {
+          setSubmitted(false); setStep('vehicle')
+          setVehicle({ vin:'',year:'',make:'',model:'',trim:'' })
+          setForm({ customerName:'',phone:'',notes:'' })
+          setBuckets(BUCKETS.map(b => ({ category: b.id, photos: [] })))
+        }} style={btn(true, '100%')}>
           Start New Appraisal
         </button>
       </div>
-    )
-  }
+    </Shell>
+  )
 
   return (
-    <div style={{ minHeight: '100vh', background: PAGE, fontFamily: 'Inter,-apple-system,sans-serif', maxWidth: 480, margin: '0 auto', padding: '0 0 40px' }}>
-      <style>{`*{box-sizing:border-box} input,button,textarea,select{font:inherit} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
-
+    <Shell>
       {/* Header */}
-      <div style={{ padding: '20px 24px 16px', background: CARD, borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ fontWeight: 800, fontSize: 18, letterSpacing: -0.5 }}>
+      <div style={{ padding: '18px 20px 14px', background: CARD, borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontWeight: 800, fontSize: 17, letterSpacing: -0.5 }}>
           <span style={{ color: INK }}>Aut</span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20, borderRadius: '50%', background: GOLD, color: '#fff', fontSize: 9, margin: '0 1px' }}>AL</span>
+          <span style={{ display:'inline-flex',alignItems:'center',justifyContent:'center',width:19,height:19,borderRadius:'50%',background:GOLD,color:'#fff',fontSize:8,margin:'0 1px' }}>AL</span>
           <span style={{ color: INK }}>Lens</span>
         </div>
-        <div style={{ fontSize: 12, color: DIM }}>Lot capture</div>
+        <div style={{ fontSize: 11, color: DIM, letterSpacing: 0.3 }}>Lot capture</div>
       </div>
 
-      {/* Vehicle name bar (once VIN decoded) */}
+      {/* Vehicle bar */}
       {vehicle.make && (
-        <div style={{ padding: '12px 24px', background: CARD, borderBottom: `1px solid ${LINE}` }}>
-          <div style={{ fontSize: 11, color: DIM }}>{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}</div>
-          {form.customerName && <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginTop: 2 }}>{form.customerName}</div>}
+        <div style={{ padding: '10px 20px', background: SURF, borderBottom: `1px solid ${LINE}` }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: INK }}>{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}</div>
+          {form.customerName && <div style={{ fontSize: 11, color: MUTED, marginTop: 1 }}>{form.customerName}</div>}
         </div>
       )}
 
-      {/* Progress bar */}
-      <div style={{ display: 'flex', padding: '16px 24px 0', gap: 8 }}>
+      {/* Progress */}
+      <div style={{ display: 'flex', padding: '14px 20px 0', gap: 8 }}>
         {STEPS.map((s, i) => (
           <div key={s} style={{ flex: 1 }}>
-            <div style={{ height: 3, borderRadius: 99, background: i <= stepIndex ? GOLD : LINE, marginBottom: 6 }} />
+            <div style={{ height: 3, borderRadius: 99, background: i <= stepIndex ? GOLD : LINE, marginBottom: 5 }} />
             <div style={{ fontSize: 10, color: i <= stepIndex ? INK : DIM, fontWeight: i === stepIndex ? 600 : 400 }}>{STEP_LABELS[i]}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ padding: '24px 24px 0' }}>
+      <div style={{ padding: '20px 20px 48px' }}>
 
-        {/* ── STEP 1: VEHICLE ──────────────────────────────────────────── */}
+        {/* ── VEHICLE ────────────────────────────────────────────────── */}
         {step === 'vehicle' && (
           <div>
-            {/* VIN Scan button */}
-            <button onClick={() => { setVinPhotoMode(true); vinPhotoRef.current?.click() }}
-              style={{ ...btnStyle(true), width: '100%', marginBottom: 12, fontSize: 15 }}>
+            {/* Scan VIN */}
+            <button onClick={() => fileRefs.current['vin-scan']?.click()}
+              style={{ ...btn(true, '100%'), marginBottom: 14, fontSize: 14 }}>
               📷 Scan VIN
             </button>
-            <input ref={vinPhotoRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleVINPhoto(f) }} />
+            <input ref={el => { fileRefs.current['vin-scan'] = el }} type="file" accept="image/*" capture="environment"
+              style={{ display: 'none' }} onChange={e => { /* TODO: Claude Vision decode */ }} />
 
-            {/* VIN text input */}
-            <div style={{ marginBottom: 16 }}>
-              <Field label="VIN Number" value={vehicle.vin} placeholder="Scan or type 17-digit VIN"
-                onChange={v => { setV('vin', v.toUpperCase()); if (v.length === 17) handleVINDecode(v.toUpperCase()) }} />
-              {vinLoading && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, color: MUTED, fontSize: 12 }}>
-                  <span style={{ width: 12, height: 12, border: `2px solid ${LINE}`, borderTopColor: GOLD, borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
-                  {vinPhotoMode ? 'Reading VIN from photo…' : 'Decoding VIN…'}
-                </div>
-              )}
-              {vinError && <div style={{ fontSize: 11, color: '#B83232', marginTop: 6 }}>{vinError}</div>}
+            {/* VIN input */}
+            <div style={{ marginBottom: 14 }}>
+              <Field label="VIN" value={vehicle.vin} placeholder="Type or scan 17-digit VIN"
+                onChange={handleVINInput} />
+              {vinLoading && <Spinner label="Decoding VIN…" />}
+              {vinError   && <div style={{ fontSize: 11, color: '#B83232', marginTop: 5 }}>{vinError}</div>}
             </div>
 
-            {/* Auto-filled vehicle fields */}
+            {/* Decoded vehicle */}
             {vehicle.make && (
-              <div style={{ background: SURF, borderRadius: 12, padding: '12px 16px', marginBottom: 16, border: `1px solid ${LINE}` }}>
-                <div style={{ fontSize: 10, color: DIM, marginBottom: 4 }}>VIN DECODED</div>
+              <div style={{ background: SURF, borderRadius: 12, padding: '10px 14px', marginBottom: 14, border: `1px solid ${LINE}` }}>
+                <div style={{ fontSize: 10, color: GOLD, fontWeight: 600, marginBottom: 3 }}>✓ VIN DECODED</div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: INK }}>{vehicle.year} {vehicle.make} {vehicle.model}</div>
-                {vehicle.trim && <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{vehicle.trim}</div>}
+                {vehicle.trim && <div style={{ fontSize: 12, color: MUTED, marginTop: 1 }}>{vehicle.trim}</div>}
               </div>
             )}
 
-            {/* Customer info */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+            {/* Customer fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
               <div style={{ gridColumn: '1 / -1' }}>
                 <Field label="Customer Name" value={form.customerName} placeholder="Full name" onChange={v => setF('customerName', v)} />
               </div>
-              <Field label="Phone" value={form.phone} placeholder="(555) 000-0000" onChange={v => setF('phone', v)} type="tel" />
-              <Field label="Mileage" value={form.mileage} placeholder="58,342" onChange={v => setF('mileage', v)} type="number" />
-              <Field label="Keys" value={form.keys} placeholder="2" onChange={v => setF('keys', v)} type="number" />
+              <div style={{ gridColumn: '1 / -1' }}>
+                <Field label="Phone Number" value={form.phone} placeholder="(555) 000-0000" onChange={v => setF('phone', v)} type="tel" />
+              </div>
             </div>
 
             <button onClick={() => setStep('photos')} disabled={!canAdvanceVehicle}
-              style={{ ...btnStyle(true), width: '100%', marginTop: 16, opacity: canAdvanceVehicle ? 1 : 0.4 }}>
-              Continue to Photos →
+              style={{ ...btn(true, '100%'), opacity: canAdvanceVehicle ? 1 : 0.35 }}>
+              Continue →
             </button>
           </div>
         )}
 
-        {/* ── STEP 2: PHOTOS ───────────────────────────────────────────── */}
+        {/* ── PHOTOS ─────────────────────────────────────────────────── */}
         {step === 'photos' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: INK }}>Guided Photos</div>
-              <div style={{ background: GOLD, color: '#fff', borderRadius: 99, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
-                {photoCount}/{REQUIRED_ANGLES.length}
-              </div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: INK, marginBottom: 4 }}>Upload Photos</div>
+              <div style={{ fontSize: 13, color: MUTED }}>Add photos of anything you'd like us to evaluate. Only one photo required.</div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 20 }}>
-              {REQUIRED_ANGLES.map(angle => {
-                const photo = getPhoto(angle)
-                return (
-                  <div key={angle} onClick={() => photoRefs.current[angle]?.click()}
-                    style={{ position: 'relative', aspectRatio: '4/3', borderRadius: 12, overflow: 'hidden', background: photo ? 'transparent' : SURF, border: `1.5px ${photo ? 'solid' : 'dashed'} ${photo ? GOLD : LINE}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
-                    {photo ? (
-                      <>
-                        <img src={photo.preview} alt={angle} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-                        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent,rgba(0,0,0,0.5))', padding: '8px 6px 4px', fontSize: 8, color: '#fff' }}>{angle}</div>
-                        <div style={{ position: 'absolute', top: 4, right: 4, width: 18, height: 18, borderRadius: '50%', background: GOLD, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#fff' }}>✓</div>
-                      </>
-                    ) : (
-                      <>
-                        <span style={{ fontSize: 18, opacity: 0.4 }}>📷</span>
-                        <span style={{ fontSize: 9, color: DIM, textAlign: 'center', padding: '0 4px' }}>{angle}</span>
-                      </>
-                    )}
-                    <input ref={el => { photoRefs.current[angle] = el }} type="file" accept="image/*" capture="environment"
-                      style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handlePhoto(angle, f) }} />
+            {BUCKETS.map(bucket => {
+              const bucketData = buckets.find(b => b.category === bucket.id)!
+              const count      = bucketData.photos.length
+
+              return (
+                <div key={bucket.id} style={{ background: CARD, borderRadius: 16, padding: '16px', marginBottom: 12, border: `1px solid ${LINE}`, boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                  {/* Bucket header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: count > 0 ? 12 : 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{bucket.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: INK }}>{bucket.label}</div>
+                        <div style={{ fontSize: 11, color: DIM, marginTop: 1 }}>{bucket.hint}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {count > 0 && (
+                        <span style={{ fontSize: 11, color: GOLD, fontWeight: 600 }}>{count} photo{count !== 1 ? 's' : ''}</span>
+                      )}
+                      <button onClick={() => fileRefs.current[bucket.id]?.click()}
+                        style={{ width: 32, height: 32, borderRadius: '50%', background: count > 0 ? SURF : INK, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: count > 0 ? INK : '#fff', flexShrink: 0 }}>
+                        +
+                      </button>
+                    </div>
                   </div>
-                )
-              })}
-            </div>
+
+                  {/* Photo thumbnails */}
+                  {count > 0 && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {bucketData.photos.map(photo => (
+                        <div key={photo.id} style={{ position: 'relative', width: 72, height: 54 }}>
+                          <img src={photo.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8, border: `1px solid ${LINE}` }} />
+                          <button onClick={() => removePhoto(bucket.id, photo.id)}
+                            style={{ position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#B83232', border: 'none', color: '#fff', fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}>
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {/* Add more */}
+                      <div onClick={() => fileRefs.current[bucket.id]?.click()}
+                        style={{ width: 72, height: 54, borderRadius: 8, border: `1.5px dashed ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 20, color: DIM }}>
+                        +
+                      </div>
+                    </div>
+                  )}
+
+                  <input ref={el => { fileRefs.current[bucket.id] = el }} type="file" accept="image/*" capture="environment" multiple
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      Array.from(e.target.files || []).forEach(f => handlePhoto(bucket.id, f))
+                      e.target.value = ''
+                    }} />
+                </div>
+              )
+            })}
 
             {/* Notes */}
             <textarea value={form.notes} onChange={e => setF('notes', e.target.value)}
-              placeholder="Customer mentioned wheel scrape, windshield chip visible from driver side..."
-              style={{ width: '100%', minHeight: 90, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px', fontSize: 13, color: INK, resize: 'none', outline: 'none', background: CARD, lineHeight: 1.6, marginBottom: 16 }} />
+              placeholder="Any notes for the manager... (optional)"
+              style={{ width: '100%', minHeight: 80, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px', fontSize: 13, color: INK, resize: 'none', outline: 'none', background: CARD, lineHeight: 1.6, marginTop: 4, marginBottom: 16 }} />
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setStep('vehicle')} style={{ ...btnStyle(false), flex: 1 }}>← Back</button>
-              <button onClick={() => setStep('review')} disabled={!canAdvancePhotos}
-                style={{ ...btnStyle(true), flex: 2, opacity: canAdvancePhotos ? 1 : 0.4 }}>
+              <button onClick={() => setStep('vehicle')} style={btn(false, undefined)}>← Back</button>
+              <button onClick={() => setStep('submit')} disabled={!canSubmit}
+                style={{ ...btn(true, undefined), flex: 1, opacity: canSubmit ? 1 : 0.35 }}>
                 Review →
               </button>
             </div>
-            <button style={{ ...btnStyle(false), width: '100%', marginTop: 10, fontSize: 12, color: DIM, border: 'none' }}
-              onClick={() => setStep('review')}>
-              Skip for now
-            </button>
+            {!canSubmit && <div style={{ fontSize: 11, color: DIM, textAlign: 'center', marginTop: 10 }}>Add at least one photo to continue</div>}
           </div>
         )}
 
-        {/* ── STEP 3: REVIEW ───────────────────────────────────────────── */}
-        {step === 'review' && (
+        {/* ── SUBMIT ─────────────────────────────────────────────────── */}
+        {step === 'submit' && (
           <div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: INK, marginBottom: 16 }}>Review & Confirm</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: INK, marginBottom: 16 }}>Review & Submit</div>
 
-            {/* Vehicle summary */}
-            <div style={cardStyle}>
+            {/* Vehicle */}
+            <div style={card}>
               <Label>Vehicle</Label>
               <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginTop: 6 }}>{vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim}</div>
-              <div style={{ fontSize: 12, color: MUTED, marginTop: 3 }}>VIN: {vehicle.vin} · {form.mileage} mi · {form.keys} key{form.keys !== '1' ? 's' : ''}</div>
+              <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>VIN: {vehicle.vin}</div>
             </div>
 
-            {/* Customer summary */}
-            <div style={cardStyle}>
+            {/* Customer */}
+            <div style={card}>
               <Label>Customer</Label>
               <div style={{ fontSize: 15, fontWeight: 700, color: INK, marginTop: 6 }}>{form.customerName}</div>
-              <div style={{ fontSize: 12, color: MUTED, marginTop: 3 }}>{form.phone}</div>
+              <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{form.phone}</div>
             </div>
 
             {/* Photos summary */}
-            <div style={cardStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <div style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <Label>Photos</Label>
-                <span style={{ fontSize: 12, color: photoCount >= REQUIRED_ANGLES.length ? '#2A7B52' : MUTED }}>
-                  {photoCount}/{REQUIRED_ANGLES.length} uploaded
-                </span>
+                <span style={{ fontSize: 12, color: GOLD, fontWeight: 600 }}>{totalPhotos} uploaded</span>
               </div>
-              {photos.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {photos.map(p => (
-                    <img key={p.angle} src={p.preview} alt={p.angle} style={{ width: 56, height: 42, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
-                  ))}
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {buckets.flatMap(b => b.photos).map(p => (
+                  <img key={p.id} src={p.preview} alt="" style={{ width: 52, height: 40, objectFit: 'cover', borderRadius: 7, border: `1px solid ${LINE}` }} />
+                ))}
+              </div>
             </div>
 
-            {/* Notes */}
             {form.notes && (
-              <div style={cardStyle}>
+              <div style={card}>
                 <Label>Notes</Label>
                 <div style={{ fontSize: 13, color: INK, marginTop: 6, lineHeight: 1.5 }}>{form.notes}</div>
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <button onClick={() => setStep('photos')} style={{ ...btnStyle(false), flex: 1 }}>← Back</button>
-              <button onClick={() => setStep('submit')} style={{ ...btnStyle(true), flex: 2 }}>Looks Good →</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── STEP 4: SUBMIT ───────────────────────────────────────────── */}
-        {step === 'submit' && (
-          <div style={{ textAlign: 'center', paddingTop: 40 }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>📋</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: INK, marginBottom: 8 }}>Ready to Submit</div>
-            <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.6, marginBottom: 32 }}>
-              {form.customerName}'s {vehicle.year} {vehicle.make} {vehicle.model} will be sent to the manager for review.
-            </div>
-
             <button onClick={handleSubmit} disabled={submitting}
-              style={{ ...btnStyle(true), width: '100%', fontSize: 15, padding: '16px', marginBottom: 12 }}>
-              {submitting ? (
-                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                  <span style={{ width: 16, height: 16, border: `2px solid rgba(255,255,255,0.4)`, borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
-                  Submitting…
-                </span>
-              ) : 'Submit to Manager'}
+              style={{ ...btn(true, '100%'), fontSize: 15, padding: '15px', marginBottom: 10 }}>
+              {submitting
+                ? <span style={{ display:'flex',alignItems:'center',justifyContent:'center',gap:10 }}>
+                    <span style={{ width:15,height:15,border:'2px solid rgba(255,255,255,0.3)',borderTopColor:'#fff',borderRadius:'50%',display:'inline-block',animation:'spin 0.8s linear infinite' }} />
+                    Submitting…
+                  </span>
+                : 'Submit to Manager'
+              }
             </button>
-
-            <button onClick={() => setStep('review')} style={{ ...btnStyle(false), width: '100%' }}>← Back to Review</button>
+            <button onClick={() => setStep('photos')} style={btn(false, '100%')}>← Back</button>
           </div>
         )}
       </div>
+    </Shell>
+  )
+}
+
+// ─── Shared components ────────────────────────────────────────────────────────
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ minHeight: '100vh', background: PAGE, fontFamily: 'Inter,-apple-system,sans-serif', maxWidth: 480, margin: '0 auto' }}>
+      <style>{`*{box-sizing:border-box} input,button,textarea{font:inherit} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      {children}
     </div>
   )
 }
 
-// ─── Shared mini components ───────────────────────────────────────────────────
 function Field({ label, value, placeholder, onChange, type = 'text' }: { label: string; value: string; placeholder: string; onChange: (v: string) => void; type?: string }) {
   return (
     <div>
       <div style={{ fontSize: 10, color: DIM, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
       <input type={type} value={value} placeholder={placeholder} onChange={e => onChange(e.target.value)}
-        style={{ width: '100%', background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px', fontSize: 15, color: '#1A1A1C', outline: 'none' }} />
+        style={{ width: '100%', background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px', fontSize: 15, color: INK, outline: 'none' }} />
     </div>
   )
 }
@@ -394,26 +376,25 @@ function Label({ children }: { children: React.ReactNode }) {
   return <div style={{ fontSize: 10, color: DIM, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase' }}>{children}</div>
 }
 
-const cardStyle: React.CSSProperties = {
-  background: '#FFFFFF',
-  borderRadius: 14,
-  padding: '14px 16px',
-  marginBottom: 12,
-  border: `1px solid #E6E4E0`,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+function Spinner({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 7, color: MUTED, fontSize: 12 }}>
+      <span style={{ width: 12, height: 12, border: `2px solid ${LINE}`, borderTopColor: GOLD, borderRadius: '50%', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />
+      {label}
+    </div>
+  )
 }
 
-function btnStyle(primary: boolean): React.CSSProperties {
+const card: React.CSSProperties = {
+  background: CARD, borderRadius: 14, padding: '14px 16px', marginBottom: 12,
+  border: `1px solid ${LINE}`, boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+}
+
+function btn(primary: boolean, width?: string | number): React.CSSProperties {
   return {
-    padding: '13px 22px',
-    background: primary ? INK : CARD,
-    border: `1px solid ${primary ? INK : LINE}`,
-    borderRadius: 12,
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: 'pointer',
-    color: primary ? '#fff' : MUTED,
-    display: 'block',
-    textAlign: 'center',
+    width, padding: '12px 20px', background: primary ? INK : CARD,
+    border: `1px solid ${primary ? INK : LINE}`, borderRadius: 12,
+    fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    color: primary ? '#fff' : MUTED, display: 'block', textAlign: 'center',
   }
 }
