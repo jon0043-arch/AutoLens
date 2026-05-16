@@ -38,8 +38,11 @@ const LINE   = '#E6E4E0'
 
 const REQUIRED_ANGLES = [
   'Front', 'Rear', 'Driver Side', 'Passenger Side',
-  'Wheels', 'Windshield', 'Interior', 'Odometer', 'Damage',
+  'Wheel 1', 'Wheel 2', 'Wheel 3', 'Wheel 4',
+  'Windshield', 'Interior', 'Odometer', 'Damage',
 ]
+
+const REQUIRED_FOR_SUBMIT = ['Damage']
 
 const STEPS: Step[] = ['vehicle', 'photos', 'review', 'submit']
 const STEP_LABELS = ['Vehicle', 'Photos', 'Review', 'Submit']
