@@ -106,12 +106,32 @@ export default function SalespersonPage() {
     ))
   }, [])
 
-  // TODO: POST /api/appraisals { vehicle, form, buckets }
   const handleSubmit = async () => {
-    setSubmitting(true)
-    await new Promise(r => setTimeout(r, 1500))
-    setSubmitting(false); setSubmitted(true)
+  setSubmitting(true)
+  try {
+    await fetch('/api/appraisals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        customerName: form.customerName,
+        phone:        form.phone,
+        keys:         form.keys,
+        notes:        form.notes,
+        vin:          vehicle.vin,
+        year:         vehicle.year,
+        make:         vehicle.make,
+        model:        vehicle.model,
+        trim:         vehicle.trim,
+        mileage:      form.keys,
+        photos:       buckets.map(b => ({ category: b.category, photos: b.photos.map(p => p.preview) })),
+      }),
+    })
+    setSubmitted(true)
+  } catch {
+    alert('Submission failed — try again')
   }
+  setSubmitting(false)
+}
 
   if (submitted) return (
     <Shell>
