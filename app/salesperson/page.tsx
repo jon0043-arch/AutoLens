@@ -144,7 +144,7 @@ export default function SalespersonPage() {
   }
 
   const canAdvanceVehicle = vehicle.vin.length === 17 && vehicle.make && form.customerName && form.phone && form.mileage
-  const canAdvancePhotos  = photoCount >= 1
+  const canAdvancePhotos = REQUIRED_FOR_SUBMIT.every(angle => photos.some(p => p.angle === angle))
 
   // ── Submitted screen ──────────────────────────────────────────────────────
   if (submitted) {
